@@ -1,0 +1,423 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ORGANIZER
+  AGENT
+  MEMBER
+}
+
+enum MemberStatus {
+  ACTIVE
+  PENDING_KYC
+  INACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum ChitGroupStatus {
+  DRAFT
+  OPEN
+  ACTIVE
+  COMPLETED
+  CLOSED
+  CANCELLED
+}
+
+enum InstallmentStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  WAIVED
+}
+
+enum PaymentMode {
+  CASH
+  BANK_TRANSFER
+  UPI
+  CHEQUE
+  ONLINE
+  ADJUSTMENT
+}
+
+enum AuctionStatus {
+  SCHEDULED
+  OPEN
+  CLOSED
+  SETTLED
+  CANCELLED
+}
+
+enum PayoutStatus {
+  PENDING
+  APPROVED
+  ON_HOLD
+  PAID
+  REJECTED
+  DISBURSED
+  CANCELLED
+}
+
+enum PayoutMethod {
+  CASH
+  BANK_TRANSFER
+  UPI
+  CHEQUE
+  ONLINE
+}
+
+enum NotificationType {
+  DUE_REMINDER
+  OVERDUE_REMINDER
+  AUCTION_REMINDER
+  AUCTION_RESULT
+  PAYOUT_STATUS
+  SYSTEM
+}
+
+enum NotificationChannel {
+  IN_APP
+  WHATSAPP
+  SMS
+  EMAIL
+}
+
+enum NotificationDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model User {
+  id               String      @id @default(uuid()) @db.Uuid
+  email            String      @unique
+  passwordHash     String?
+  role             UserRole    @default(MEMBER)
+  isActive         Boolean     @default(true)
+  lastLoginAt      DateTime?
+  profile          Profile?
+  member           Member?     @relation("UserMember")
+  sessions         Session[]
+  notifications    Notification[]
+  createdChitGroups ChitGroup[] @relation("ChitGroupCreatedBy")
+  recordedPayments Payment[]   @relation("PaymentRecordedBy")
+  approvedPayouts  Payout[]    @relation("PayoutApprovedBy")
+  auditLogs        AuditLog[]  @relation("AuditLogActor")
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([role, isActive])
+}
+
+model Session {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @db.Uuid
+  sessionTokenHash String   @unique
+  expiresAt        DateTime
+  lastSeenAt       DateTime?
+  ipAddress        String?
+  userAgent        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+model Profile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @db.Uuid
+  firstName   String
+  lastName    String?
+  phone       String?
+  avatarUrl   String?
+  designation String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([firstName, lastName])
+}
+
+model Member {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String?          @unique @db.Uuid
+  memberCode     String           @unique
+  firstName      String
+  lastName       String?
+  primaryPhone   String
+  primaryEmail   String?
+  dateOfBirth    DateTime?
+  addressLine1   String?
+  addressLine2   String?
+  city           String?
+  state          String?
+  postalCode     String?
+  notes          String?
+  status         MemberStatus     @default(ACTIVE)
+  joinedAt       DateTime         @default(now())
+  closedAt       DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  user           User?            @relation("UserMember", fields: [userId], references: [id], onDelete: SetNull)
+  enrollments    ChitEnrollment[]
+  payments       Payment[]
+  payouts        Payout[]
+
+  @@index([status])
+  @@index([primaryPhone])
+  @@index([primaryEmail])
+  @@index([firstName, lastName])
+}
+
+model ChitGroup {
+  id                String            @id @default(uuid()) @db.Uuid
+  code              String            @unique
+  name              String
+  description       String?
+  status            ChitGroupStatus   @default(DRAFT)
+  ticketCount       Int
+  installmentAmount Decimal           @db.Decimal(12, 2)
+  prizeAmount       Decimal           @db.Decimal(12, 2)
+  durationMonths    Int
+  startDate         DateTime
+  auctionDay        Int?
+  graceDays         Int               @default(0)
+  lateFeeAmount     Decimal           @default(0) @db.Decimal(12, 2)
+  createdByUserId   String?           @db.Uuid
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  createdBy         User?             @relation("ChitGroupCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  enrollments       ChitEnrollment[]
+  installments      Installment[]
+  payments          Payment[]
+  auctionCycles     AuctionCycle[]
+  payouts           Payout[]
+
+  @@index([status, startDate])
+  @@index([createdByUserId])
+}
+
+model ChitEnrollment {
+  id                String         @id @default(uuid()) @db.Uuid
+  chitGroupId       String         @db.Uuid
+  memberId          String         @db.Uuid
+  ticketNumber      Int
+  isActive          Boolean        @default(true)
+  joinedAt          DateTime       @default(now())
+  closedAt          DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  chitGroup         ChitGroup      @relation(fields: [chitGroupId], references: [id], onDelete: Cascade)
+  member            Member         @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  installments      Installment[]
+  payments          Payment[]
+  bids              Bid[]
+  payouts           Payout[]
+  wonAuctionCycles  AuctionCycle[] @relation("AuctionWinner")
+
+  @@unique([chitGroupId, ticketNumber])
+  @@index([memberId])
+  @@index([chitGroupId, memberId])
+  @@index([isActive])
+}
+
+model Installment {
+  id               String            @id @default(uuid()) @db.Uuid
+  chitGroupId      String            @db.Uuid
+  chitEnrollmentId String            @db.Uuid
+  auctionCycleId   String?           @db.Uuid
+  cycleNumber      Int
+  dueDate          DateTime
+  dueAmount        Decimal           @db.Decimal(12, 2)
+  paidAmount       Decimal           @default(0) @db.Decimal(12, 2)
+  status           InstallmentStatus @default(PENDING)
+  lastPaidAt       DateTime?
+  paidAt           DateTime?
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  chitGroup        ChitGroup         @relation(fields: [chitGroupId], references: [id], onDelete: Cascade)
+  chitEnrollment   ChitEnrollment    @relation(fields: [chitEnrollmentId], references: [id], onDelete: Cascade)
+  auctionCycle     AuctionCycle?     @relation(fields: [auctionCycleId], references: [id], onDelete: SetNull)
+  payments         Payment[]
+
+  @@unique([chitEnrollmentId, cycleNumber])
+  @@index([chitGroupId, cycleNumber])
+  @@index([status, dueDate])
+  @@index([auctionCycleId])
+}
+
+model Payment {
+  id               String      @id @default(uuid()) @db.Uuid
+  chitGroupId      String      @db.Uuid
+  memberId         String      @db.Uuid
+  chitEnrollmentId String      @db.Uuid
+  installmentId    String      @db.Uuid
+  amount           Decimal     @db.Decimal(12, 2)
+  paymentMode      PaymentMode
+  referenceNo      String?
+  receivedOn       DateTime    @default(now())
+  remarks          String?
+  metadata         Json?
+  recordedByUserId String?     @db.Uuid
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  chitGroup        ChitGroup   @relation(fields: [chitGroupId], references: [id], onDelete: Restrict)
+  member           Member      @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  chitEnrollment   ChitEnrollment @relation(fields: [chitEnrollmentId], references: [id], onDelete: Restrict)
+  installment      Installment @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+  recordedBy       User?       @relation("PaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([installmentId, receivedOn])
+  @@index([memberId, receivedOn])
+  @@index([chitGroupId, receivedOn])
+  @@index([recordedByUserId])
+  @@unique([chitGroupId, referenceNo])
+}
+
+model AuctionCycle {
+  id                 String         @id @default(uuid()) @db.Uuid
+  chitGroupId        String         @db.Uuid
+  cycleNumber        Int
+  scheduledAt        DateTime
+  closedAt           DateTime?
+  status             AuctionStatus  @default(SCHEDULED)
+  winningEnrollmentId String?       @db.Uuid
+  winningBidAmount   Decimal?       @db.Decimal(12, 2)
+  grossPrizeAmount    Decimal?       @db.Decimal(12, 2)
+  discountAmount      Decimal?       @db.Decimal(12, 2)
+  netPrizeAmount      Decimal?       @db.Decimal(12, 2)
+  dividendAmount     Decimal?       @db.Decimal(12, 2)
+  notes              String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  chitGroup          ChitGroup      @relation(fields: [chitGroupId], references: [id], onDelete: Cascade)
+  winningEnrollment  ChitEnrollment? @relation("AuctionWinner", fields: [winningEnrollmentId], references: [id], onDelete: SetNull)
+  installments       Installment[]
+  bids               Bid[]
+  payout             Payout?
+
+  @@unique([chitGroupId, cycleNumber])
+  @@index([status, scheduledAt])
+  @@index([winningEnrollmentId])
+}
+
+model Bid {
+  id               String         @id @default(uuid()) @db.Uuid
+  auctionCycleId   String         @db.Uuid
+  chitEnrollmentId String         @db.Uuid
+  amount           Decimal        @db.Decimal(12, 2)
+  remarks          String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  auctionCycle     AuctionCycle   @relation(fields: [auctionCycleId], references: [id], onDelete: Cascade)
+  chitEnrollment   ChitEnrollment @relation(fields: [chitEnrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([auctionCycleId, chitEnrollmentId])
+  @@index([chitEnrollmentId])
+}
+
+model Payout {
+  id               String       @id @default(uuid()) @db.Uuid
+  auctionCycleId   String       @unique @db.Uuid
+  chitGroupId      String       @db.Uuid
+  memberId         String       @db.Uuid
+  chitEnrollmentId String       @db.Uuid
+  grossAmount      Decimal      @db.Decimal(12, 2)
+  deductionsAmount Decimal      @default(0) @db.Decimal(12, 2)
+  netAmount        Decimal      @db.Decimal(12, 2)
+  status           PayoutStatus @default(PENDING)
+  method           PayoutMethod?
+  approvedByUserId String?      @db.Uuid
+  approvedAt       DateTime?
+  paidAt           DateTime?
+  acknowledgedAt   DateTime?
+  rejectedAt       DateTime?
+  referenceNo      String?
+  remarks          String?
+  proofUrl         String?
+  rejectionReason  String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  auctionCycle     AuctionCycle @relation(fields: [auctionCycleId], references: [id], onDelete: Restrict)
+  chitGroup        ChitGroup    @relation(fields: [chitGroupId], references: [id], onDelete: Restrict)
+  member           Member       @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  chitEnrollment   ChitEnrollment @relation(fields: [chitEnrollmentId], references: [id], onDelete: Restrict)
+  approvedBy       User?        @relation("PayoutApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, paidAt])
+  @@index([memberId])
+  @@index([chitGroupId])
+  @@index([approvedByUserId])
+  @@unique([chitGroupId, referenceNo])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @db.Uuid
+  entityType  String
+  entityId    String
+  action      String
+  summary     String?
+  before      Json?
+  after       Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  actor       User?    @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+}
+
+model Notification {
+  id         String         @id @default(uuid()) @db.Uuid
+  userId     String         @db.Uuid
+  type       NotificationType
+  title      String
+  message    String
+  linkHref   String?
+  eventKey   String?
+  metadata   Json?
+  readAt     DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries NotificationDelivery[]
+
+  @@index([userId, readAt, createdAt])
+  @@index([type, createdAt])
+  @@unique([userId, eventKey])
+}
+
+model NotificationDelivery {
+  id            String                     @id @default(uuid()) @db.Uuid
+  notificationId String                    @db.Uuid
+  channel       NotificationChannel
+  providerKey   String
+  status        NotificationDeliveryStatus @default(PENDING)
+  attemptedAt   DateTime                   @default(now())
+  deliveredAt   DateTime?
+  responseCode  String?
+  errorMessage  String?
+  responseBody  Json?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+  notification  Notification               @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId, attemptedAt])
+  @@index([channel, status, attemptedAt])
+}
