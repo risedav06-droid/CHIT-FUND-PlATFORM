@@ -2,7 +2,13 @@ import type { Route } from "next";
 import { redirect } from "next/navigation";
 
 import { buildFeedbackHref } from "@/lib/action-state";
-import { canAccessPermission, type AuthPermission } from "@/modules/auth/auth.permissions";
+import {
+  canAccessPermission,
+  formatAuthRoleLabel,
+  getAllowedRolesForPermission,
+  getPermissionGuard,
+  type AuthPermission,
+} from "@/modules/auth/auth.permissions";
 import { authRepository } from "@/modules/auth/auth.repository";
 import { verifyPassword } from "@/modules/auth/auth.password";
 import { getCurrentSession } from "@/modules/auth/auth.session";
@@ -38,6 +44,12 @@ export function getPostLoginPath(session: AuthenticatedSession) {
   }
 
   return "/dashboard" as Route;
+}
+
+function formatAllowedRoles(permission: AuthPermission) {
+  return getAllowedRolesForPermission(permission)
+    .map((role) => formatAuthRoleLabel(role).toLowerCase())
+    .join(", ");
 }
 
 export const authService = {
@@ -81,11 +93,14 @@ export const authService = {
     const session = await this.requireAuthenticatedSession(nextPath);
 
     if (!canAccessPermission(session.user.role, permission)) {
+      const guard = getPermissionGuard(permission);
       redirect(
         buildFeedbackHref(
           "/dashboard",
           "error",
-          "You are not allowed to access that operating area.",
+          `Access denied for ${guard.label}. Your ${formatAuthRoleLabel(
+            session.user.role,
+          ).toLowerCase()} account can use: ${formatAllowedRoles(permission)}.`,
         ),
       );
     }
@@ -101,11 +116,14 @@ export const authService = {
     }
 
     if (!canAccessPermission(session.user.role, permission)) {
+      const guard = getPermissionGuard(permission);
       redirect(
         buildFeedbackHref(
           feedbackPath,
           "error",
-          "You are not allowed to perform that action.",
+          `Action denied for ${guard.label}. Allowed roles: ${formatAllowedRoles(
+            permission,
+          )}.`,
         ),
       );
     }

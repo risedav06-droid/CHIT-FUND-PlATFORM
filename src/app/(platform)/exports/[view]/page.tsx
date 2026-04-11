@@ -50,7 +50,7 @@ export default async function ExportViewPage({
               {getExportTitle(exportData.view)}
             </h1>
             <p className="mt-2 text-sm text-muted">
-              Print-safe operational export for pilot usage.
+              Print-safe operational export for pilot usage. On mobile, swipe horizontally to review the full ledger before printing.
             </p>
           </div>
 
@@ -84,8 +84,8 @@ export default async function ExportViewPage({
       {"report" in exportData ? (
         <>
           {exportData.view === "member-ledger" ? (
-            <section className="overflow-hidden rounded-[1.75rem] border border-border bg-white">
-              <table className="min-w-full divide-y divide-border text-sm">
+            <section className="overflow-x-auto rounded-[1.75rem] border border-border bg-white">
+              <table className="min-w-[760px] divide-y divide-border text-xs sm:text-sm">
                 <thead className="bg-surface-strong/50 text-left text-muted">
                   <tr>
                     <th className="px-4 py-3 font-medium">Member</th>
@@ -118,8 +118,8 @@ export default async function ExportViewPage({
           ) : null}
 
           {exportData.view === "group-ledger" ? (
-            <section className="overflow-hidden rounded-[1.75rem] border border-border bg-white">
-              <table className="min-w-full divide-y divide-border text-sm">
+            <section className="overflow-x-auto rounded-[1.75rem] border border-border bg-white">
+              <table className="min-w-[760px] divide-y divide-border text-xs sm:text-sm">
                 <thead className="bg-surface-strong/50 text-left text-muted">
                   <tr>
                     <th className="px-4 py-3 font-medium">Group</th>
@@ -153,7 +153,7 @@ export default async function ExportViewPage({
           ) : null}
 
           {exportData.view === "overdue" ? (
-            <section className="overflow-hidden rounded-[1.75rem] border border-border bg-white">
+            <section className="overflow-x-auto rounded-[1.75rem] border border-border bg-white">
               {exportData.report.overdueInstallments.length === 0 ? (
                 <div className="p-6">
                   <PageEmptyState
@@ -162,7 +162,7 @@ export default async function ExportViewPage({
                   />
                 </div>
               ) : (
-                <table className="min-w-full divide-y divide-border text-sm">
+                <table className="min-w-[760px] divide-y divide-border text-xs sm:text-sm">
                   <thead className="bg-surface-strong/50 text-left text-muted">
                     <tr>
                       <th className="px-4 py-3 font-medium">Member</th>
@@ -199,7 +199,7 @@ export default async function ExportViewPage({
           ) : null}
 
           {exportData.view === "collections" ? (
-            <section className="overflow-hidden rounded-[1.75rem] border border-border bg-white">
+            <section className="overflow-x-auto rounded-[1.75rem] border border-border bg-white">
               {exportData.report.collections.length === 0 ? (
                 <div className="p-6">
                   <PageEmptyState
@@ -208,7 +208,7 @@ export default async function ExportViewPage({
                   />
                 </div>
               ) : (
-                <table className="min-w-full divide-y divide-border text-sm">
+                <table className="min-w-[760px] divide-y divide-border text-xs sm:text-sm">
                   <thead className="bg-surface-strong/50 text-left text-muted">
                     <tr>
                       <th className="px-4 py-3 font-medium">Received</th>
@@ -240,7 +240,7 @@ export default async function ExportViewPage({
           ) : null}
         </>
       ) : (
-        <section className="overflow-hidden rounded-[1.75rem] border border-border bg-white">
+        <section className="overflow-x-auto rounded-[1.75rem] border border-border bg-white">
           {exportData.rows.length === 0 ? (
             <div className="p-6">
               <PageEmptyState
@@ -249,7 +249,7 @@ export default async function ExportViewPage({
               />
             </div>
           ) : exportData.view === "auction-summary" ? (
-            <table className="min-w-full divide-y divide-border text-sm">
+            <table className="min-w-[760px] divide-y divide-border text-xs sm:text-sm">
               <thead className="bg-surface-strong/50 text-left text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Auction</th>
@@ -289,7 +289,7 @@ export default async function ExportViewPage({
               </tbody>
             </table>
           ) : (
-            <table className="min-w-full divide-y divide-border text-sm">
+            <table className="min-w-[760px] divide-y divide-border text-xs sm:text-sm">
               <thead className="bg-surface-strong/50 text-left text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Created</th>

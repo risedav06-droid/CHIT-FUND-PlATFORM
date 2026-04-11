@@ -1,20 +1,29 @@
 import type { Route } from "next";
 import Link from "next/link";
 
+import { FormFeedback } from "@/components/ui/form-feedback";
 import { PageEmptyState } from "@/components/ui/page-empty-state";
 import { StatCard } from "@/components/ui/stat-card";
+import { readFeedback } from "@/lib/action-state";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { formatCurrency } from "@/lib/utils";
 import { authService } from "@/modules/auth/auth.service";
 import { dashboardService } from "@/modules/dashboard/dashboard.service";
 
+type DashboardPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
 function getFullName(firstName: string, lastName: string | null) {
   return [firstName, lastName].filter(Boolean).join(" ");
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const session = await authService.requireAuthenticatedSession("/dashboard");
-  const dashboard = await dashboardService.getDashboard(session);
+  const [feedback, dashboard] = await Promise.all([
+    readFeedback(await searchParams),
+    dashboardService.getDashboard(session),
+  ]);
 
   if (dashboard.kind === "member") {
     return (
@@ -29,6 +38,8 @@ export default async function DashboardPage() {
             recent reminders without seeing any other member&apos;s data.
           </p>
         </section>
+
+        <FormFeedback {...feedback} />
 
         {dashboard.detail ? (
           <>
@@ -80,7 +91,7 @@ export default async function DashboardPage() {
                         key={installment.id}
                         className="rounded-2xl border border-border bg-surface/40 p-4"
                       >
-                        <div className="flex justify-between gap-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="font-semibold text-foreground">
                               {installment.chitGroup.code} | Cycle {installment.cycleNumber}
@@ -151,6 +162,8 @@ export default async function DashboardPage() {
         </p>
       </section>
 
+      <FormFeedback {...feedback} />
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <StatCard
           label="Active groups"
@@ -210,7 +223,7 @@ export default async function DashboardPage() {
                   key={installment.id}
                   className="rounded-2xl border border-border bg-surface/40 p-4"
                 >
-                  <div className="flex justify-between gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <Link
                         href={`/members/${installment.chitEnrollment.member.id}` as Route}
@@ -252,7 +265,7 @@ export default async function DashboardPage() {
                   href={`/auctions/${payout.auctionCycle.id}` as Route}
                   className="block rounded-2xl border border-border bg-surface/40 p-4 transition hover:border-brand"
                 >
-                  <div className="flex justify-between gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="font-semibold text-foreground">
                         {payout.chitGroup.code} | Cycle {payout.auctionCycle.cycleNumber}
@@ -290,7 +303,7 @@ export default async function DashboardPage() {
                   href={`/chit-funds/${group.chitId}` as Route}
                   className="block rounded-2xl border border-border bg-surface/40 p-4 transition hover:border-brand"
                 >
-                  <div className="flex justify-between gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="font-semibold text-foreground">{group.code}</p>
                       <p className="mt-1 text-sm text-muted">{group.name}</p>
@@ -356,7 +369,7 @@ export default async function DashboardPage() {
                   key={payment.id}
                   className="rounded-2xl border border-border bg-surface/40 p-4"
                 >
-                  <div className="flex justify-between gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="font-semibold text-foreground">
                         {payment.member.memberCode} | {payment.chitGroup.code}

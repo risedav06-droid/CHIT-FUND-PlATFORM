@@ -2,8 +2,10 @@ import type { Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { FormFeedback } from "@/components/ui/form-feedback";
 import { PageEmptyState } from "@/components/ui/page-empty-state";
 import { StatCard } from "@/components/ui/stat-card";
+import { readFeedback } from "@/lib/action-state";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { formatCurrency } from "@/lib/utils";
 import { authService } from "@/modules/auth/auth.service";
@@ -13,6 +15,7 @@ type MemberDetailPageProps = {
   params: Promise<{
     memberId: string;
   }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function getFullName(firstName: string, lastName: string | null) {
@@ -25,9 +28,13 @@ function formatStatus(status: string) {
 
 export default async function MemberDetailPage({
   params,
+  searchParams,
 }: MemberDetailPageProps) {
-  const { memberId } = await params;
-  await authService.requireMemberRecordAccess(memberId);
+  const [{ memberId }, feedback] = await Promise.all([
+    params,
+    readFeedback(await searchParams),
+  ]);
+  const session = await authService.requireMemberRecordAccess(memberId);
   const detail = await membersService.getMemberDetail(memberId);
 
   if (!detail) {
@@ -35,12 +42,16 @@ export default async function MemberDetailPage({
   }
 
   const memberName = getFullName(detail.member.firstName, detail.member.lastName);
+  const backHref =
+    session.user.role === "MEMBER" ? "/dashboard" : "/members";
+  const backLabel =
+    session.user.role === "MEMBER" ? "Back to dashboard" : "Back to members";
 
   return (
     <div className="space-y-8">
       <section className="rounded-[1.75rem] border border-border bg-surface p-6">
-        <Link href="/members" className="text-sm font-medium text-brand">
-          Back to members
+        <Link href={backHref} className="text-sm font-medium text-brand">
+          {backLabel}
         </Link>
         <div className="mt-6 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
           <div>
@@ -59,6 +70,8 @@ export default async function MemberDetailPage({
           </span>
         </div>
       </section>
+
+      <FormFeedback {...feedback} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <StatCard
@@ -160,8 +173,8 @@ export default async function MemberDetailPage({
             />
           </div>
         ) : (
-          <div className="mt-6 overflow-hidden rounded-2xl border border-border">
-            <table className="min-w-full divide-y divide-border text-sm">
+          <div className="mt-6 overflow-x-auto rounded-2xl border border-border">
+            <table className="min-w-[760px] divide-y divide-border text-sm">
               <thead className="bg-surface-strong/50 text-left text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Group</th>
@@ -236,7 +249,7 @@ export default async function MemberDetailPage({
                   href={`/auctions/${auctionResult.id}` as Route}
                   className="block rounded-2xl border border-border bg-surface/40 p-4 transition hover:border-brand"
                 >
-                  <div className="flex justify-between gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="font-semibold text-foreground">
                         {auctionResult.chitGroup.code} | Cycle{" "}
@@ -288,7 +301,7 @@ export default async function MemberDetailPage({
                   href={`/auctions/${payout.auctionCycle.id}` as Route}
                   className="block rounded-2xl border border-border bg-surface/40 p-4 transition hover:border-brand"
                 >
-                  <div className="flex justify-between gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="font-semibold text-foreground">
                         {formatCurrency(payout.netAmount.toString())}
@@ -301,7 +314,7 @@ export default async function MemberDetailPage({
                     </div>
                     <div className="text-right text-sm text-muted">
                       <p>{formatStatus(payout.status)}</p>
-                      <p>{payout.referenceNo ?? "No reference"}</p>
+                      <p>{payout.referenceNo ?? "No reference recorded"}</p>
                     </div>
                   </div>
                 </Link>
@@ -326,7 +339,7 @@ export default async function MemberDetailPage({
                   key={payment.id}
                   className="rounded-2xl border border-border bg-surface/40 p-4"
                 >
-                  <div className="flex justify-between gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="font-medium text-foreground">
                         {formatCurrency(payment.amount.toString())}

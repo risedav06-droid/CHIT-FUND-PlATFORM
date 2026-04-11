@@ -72,6 +72,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {[
+          ["Pilot readiness", "/reports/pilot"],
           ["Member ledger", "/exports/member-ledger"],
           ["Group ledger", "/exports/group-ledger"],
           ["Overdue export", "/exports/overdue"],
@@ -142,8 +143,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
               description="No unpaid installments are currently past due."
             />
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-border">
-              <table className="min-w-full divide-y divide-border text-sm">
+            <div className="overflow-x-auto rounded-2xl border border-border">
+              <table className="min-w-[760px] divide-y divide-border text-sm">
                 <thead className="bg-surface-strong/50 text-left text-muted">
                   <tr>
                     <th className="px-4 py-3 font-medium">Member</th>
@@ -250,8 +251,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             />
           </div>
         ) : (
-          <div className="mt-6 overflow-hidden rounded-2xl border border-border">
-            <table className="min-w-full divide-y divide-border text-sm">
+          <div className="mt-6 overflow-x-auto rounded-2xl border border-border">
+            <table className="min-w-[820px] divide-y divide-border text-sm">
               <thead className="bg-surface-strong/50 text-left text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Member</th>
@@ -318,8 +319,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             />
           </div>
         ) : (
-          <div className="mt-6 overflow-hidden rounded-2xl border border-border">
-            <table className="min-w-full divide-y divide-border text-sm">
+          <div className="mt-6 overflow-x-auto rounded-2xl border border-border">
+            <table className="min-w-[920px] divide-y divide-border text-sm">
               <thead className="bg-surface-strong/50 text-left text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Group</th>

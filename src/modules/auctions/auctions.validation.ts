@@ -30,6 +30,9 @@ export const finalizeAuctionSchema = z.object({
   auctionCycleId: z.string().uuid("Select a valid auction cycle."),
   winningBidId: z.string().uuid("Select the winning bid."),
   notes: optionalText,
+  confirmFinalization: z.enum(["yes"] as const, {
+    message: "Tick the confirmation box before finalizing the auction.",
+  }),
 });
 
 export type CreateAuctionCycleInput = z.infer<typeof createAuctionCycleSchema>;

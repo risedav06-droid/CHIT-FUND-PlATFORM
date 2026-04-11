@@ -20,6 +20,10 @@ function revalidateAuctionWorkspaces(cyclePath?: string) {
   revalidatePath("/dashboard");
   revalidatePath("/chit-funds");
   revalidatePath("/members");
+  revalidatePath("/reports");
+  revalidatePath("/reports/pilot");
+  revalidatePath("/exports");
+  revalidatePath("/notifications");
 
   if (cyclePath) {
     revalidatePath(cyclePath);

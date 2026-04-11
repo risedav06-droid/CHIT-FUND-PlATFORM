@@ -221,10 +221,10 @@ export default async function AuctionCycleDetailPage({
 
         <article className="rounded-[1.75rem] border border-border bg-white p-6">
           <h2 className="text-xl font-semibold text-foreground">Finalize Winner</h2>
-          <p className="mt-2 text-sm leading-6 text-muted">
-            Finalization stores the winner, prize calculation, member dividend,
-            payout draft, and locks the cycle.
-          </p>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              Finalization stores the winner, prize calculation, member dividend,
+              payout draft, and locks the cycle.
+            </p>
 
           {detail.isLocked ? (
             <div className="mt-6">
@@ -264,7 +264,21 @@ export default async function AuctionCycleDetailPage({
                 />
               </label>
 
-              <div className="sticky bottom-4 rounded-[1.25rem] border border-border bg-white/95 p-3 backdrop-blur">
+              <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <input
+                  type="checkbox"
+                  name="confirmFinalization"
+                  value="yes"
+                  className="mt-1 size-4 rounded border-amber-300"
+                  required
+                />
+                <span>
+                  I confirm the selected winner, discount, and pending payout
+                  creation are correct. Finalization will lock this cycle.
+                </span>
+              </label>
+
+              <div className="sticky bottom-[calc(1rem+env(safe-area-inset-bottom))] rounded-[1.25rem] border border-border bg-white/95 p-3 backdrop-blur">
                 <FormSubmitButton className="w-full justify-center py-3">
                   Finalize auction
                 </FormSubmitButton>
@@ -345,7 +359,7 @@ export default async function AuctionCycleDetailPage({
               {["PAID", "DISBURSED", "REJECTED", "CANCELLED"].includes(detail.payout.status) ? (
                 <PageEmptyState
                   title="Payout is terminal"
-                  description="No further payout status changes are available in v1."
+                  description="This payout is already settled or rejected. Review the audit history and export views for follow-up instead of editing it here."
                 />
               ) : (
                 <form action={updatePayoutStatusAction} className="space-y-4 pb-20 lg:pb-0">
@@ -387,7 +401,10 @@ export default async function AuctionCycleDetailPage({
 
                   <label className="space-y-2 text-sm font-medium text-foreground">
                     <span>Payout reference</span>
-                    <Input name="referenceNo" placeholder="Bank / UPI / cheque reference" />
+                    <Input
+                      name="referenceNo"
+                      placeholder="Required for bank transfer, UPI, cheque, or online payout"
+                    />
                   </label>
                   <label className="space-y-2 text-sm font-medium text-foreground">
                     <span>Proof or acknowledgment placeholder</span>
@@ -402,7 +419,21 @@ export default async function AuctionCycleDetailPage({
                     <Textarea name="rejectionReason" placeholder="Required only when rejecting" />
                   </label>
 
-                  <div className="sticky bottom-4 rounded-[1.25rem] border border-border bg-white/95 p-3 backdrop-blur">
+                  <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <input
+                      type="checkbox"
+                      name="confirmAction"
+                      value="yes"
+                      className="mt-1 size-4 rounded border-amber-300"
+                      required
+                    />
+                    <span>
+                      I confirm this payout status change is reviewed and ready to
+                      be written to the audit trail.
+                    </span>
+                  </label>
+
+                  <div className="sticky bottom-[calc(1rem+env(safe-area-inset-bottom))] rounded-[1.25rem] border border-border bg-white/95 p-3 backdrop-blur">
                     <FormSubmitButton className="w-full justify-center py-3">
                       Update payout
                     </FormSubmitButton>
@@ -458,7 +489,7 @@ export default async function AuctionCycleDetailPage({
           <div className="mt-6 grid gap-3">
             {detail.ineligibleEnrollments.length === 0 ? (
               <PageEmptyState
-                title="No blockers"
+                title="No ineligible tickets"
                 description="Every enrolled ticket currently passes v1 auction eligibility rules."
               />
             ) : (

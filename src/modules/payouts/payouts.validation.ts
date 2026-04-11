@@ -8,6 +8,14 @@ const optionalText = z
   .optional()
   .transform((value) => (value && value.length > 0 ? value : undefined));
 
+const optionalReferenceText = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) =>
+    value && value.length > 0 ? value.toUpperCase() : undefined,
+  );
+
 const optionalDateField = z.preprocess((value) => {
   if (typeof value !== "string") {
     return value;
@@ -15,26 +23,29 @@ const optionalDateField = z.preprocess((value) => {
 
   const trimmedValue = value.trim();
   return trimmedValue.length > 0 ? trimmedValue : undefined;
-}, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date.").transform(parseDateInput).optional());
+}, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the payout date in YYYY-MM-DD format.").transform(parseDateInput).optional());
 
 export const payoutStatusUpdateSchema = z.object({
   payoutId: z.string().uuid("Select a valid payout."),
   status: z.enum(["APPROVED", "PAID", "REJECTED"] as const, {
-    message: "Select a valid payout status.",
+    message: "Select the next payout status.",
   }),
   method: z.enum(["CASH", "BANK_TRANSFER", "UPI", "CHEQUE", "ONLINE"] as const).optional(),
-  referenceNo: optionalText,
+  referenceNo: optionalReferenceText,
   paidOn: optionalDateField,
   remarks: optionalText,
   proofUrl: optionalText,
   rejectionReason: optionalText,
+  confirmAction: z.enum(["yes"] as const, {
+    message: "Tick the confirmation box before changing the payout status.",
+  }),
 }).superRefine((value, ctx) => {
   if (value.status === "PAID") {
     if (!value.method) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["method"],
-        message: "Payout method is required when marking a payout as paid.",
+        message: "Choose a payout method before marking this payout as paid.",
       });
     }
 
@@ -54,7 +65,8 @@ export const payoutStatusUpdateSchema = z.object({
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["referenceNo"],
-        message: "Payout reference number is required for this method.",
+        message:
+          "Payout reference number is required for bank transfer, UPI, cheque, and online payouts.",
       });
     }
   }
@@ -63,7 +75,7 @@ export const payoutStatusUpdateSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["rejectionReason"],
-      message: "Rejection reason is required.",
+      message: "Enter a rejection reason before rejecting this payout.",
     });
   }
 

@@ -49,6 +49,10 @@ export async function updatePayoutStatusAction(formData: FormData) {
     revalidatePath("/chit-funds");
     revalidatePath("/members");
     revalidatePath("/dashboard");
+    revalidatePath("/reports");
+    revalidatePath("/reports/pilot");
+    revalidatePath("/exports");
+    revalidatePath("/notifications");
 
     redirect(
       buildFeedbackHref(

@@ -8,19 +8,27 @@ const optionalText = z
   .optional()
   .transform((value) => (value && value.length > 0 ? value : undefined));
 
+const optionalReferenceText = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) =>
+    value && value.length > 0 ? value.toUpperCase() : undefined,
+  );
+
 export const recordInstallmentPaymentSchema = z.object({
   installmentId: z.string().uuid("Select a valid installment."),
-  amount: z.coerce.number().positive("Payment amount must be greater than 0."),
+  amount: z.coerce.number().positive("Enter a payment amount greater than 0."),
   paymentMode: z.enum(
     ["CASH", "BANK_TRANSFER", "UPI", "CHEQUE", "ONLINE", "ADJUSTMENT"] as const,
     {
       message: "Select a valid payment mode.",
     },
   ),
-  referenceNo: optionalText,
+  referenceNo: optionalReferenceText,
   receivedOn: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid received date.")
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the received date in YYYY-MM-DD format.")
     .transform(parseDateInput),
   remarks: optionalText,
 }).superRefine((value, ctx) => {
@@ -46,7 +54,8 @@ export const recordInstallmentPaymentSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["referenceNo"],
-      message: "Reference number is required for this payment mode.",
+      message:
+        "Reference number is required for bank transfer, UPI, cheque, and online payments.",
     });
   }
 });

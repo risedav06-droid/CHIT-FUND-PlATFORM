@@ -31,6 +31,7 @@ export async function markNotificationReadAction(formData: FormData) {
   );
 
   revalidatePath(notificationsPath);
+  revalidatePath("/dashboard");
   redirect(buildFeedbackHref(notificationsPath, "success", "Notification marked as read."));
 }
 
@@ -39,6 +40,7 @@ export async function markAllNotificationsReadAction() {
   await notificationsService.markAllNotificationsRead(session.user.id);
 
   revalidatePath(notificationsPath);
+  revalidatePath("/dashboard");
   redirect(buildFeedbackHref(notificationsPath, "success", "All notifications marked as read."));
 }
 
@@ -55,6 +57,8 @@ export async function generateOperationalNotificationsAction() {
 
     revalidatePath(notificationsPath);
     revalidatePath("/dashboard");
+    revalidatePath("/members");
+    revalidatePath("/reports/pilot");
     redirect(
       buildFeedbackHref(
         notificationsPath,

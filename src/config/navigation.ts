@@ -1,4 +1,7 @@
-import type { AuthRole } from "@/modules/auth/auth.permissions";
+import {
+  operationsManagerRoles,
+  type AuthRole,
+} from "@/modules/auth/auth.permissions";
 
 type NavigationItem = {
   title: string;
@@ -75,7 +78,7 @@ export const platformNavigation: NavigationItem[] = [
   {
     title: "Auctions",
     href: "/auctions",
-    allowedRoles: ["SUPER_ADMIN", "ORGANIZER", "AGENT"],
+    allowedRoles: operationsManagerRoles,
   },
   {
     title: "Reports",

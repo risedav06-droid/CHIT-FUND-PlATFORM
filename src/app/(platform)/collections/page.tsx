@@ -26,6 +26,10 @@ function statusLabel(status: string) {
   return status.replaceAll("_", " ");
 }
 
+function todayInputValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default async function CollectionsPage({
   searchParams,
 }: CollectionsPageProps) {
@@ -42,7 +46,7 @@ export default async function CollectionsPage({
         <div className="max-w-3xl">
           <h1 className="text-3xl font-semibold text-foreground">Collections</h1>
           <p className="mt-2 text-sm leading-7 text-muted">
-            Record installment receipts and monitor pending collection work.
+            Record installment receipts, normalize references, and monitor pending collection work.
           </p>
         </div>
       </section>
@@ -56,7 +60,7 @@ export default async function CollectionsPage({
               Record Installment Payment
             </h2>
             <p className="mt-2 text-sm text-muted">
-              Select a pending installment and post the received amount.
+              Select a pending installment and post the received amount. Bank transfer, UPI, cheque, and online receipts require a reference number.
             </p>
           </div>
 
@@ -108,11 +112,14 @@ export default async function CollectionsPage({
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-2 text-sm font-medium text-foreground">
                 <span>Received on</span>
-                <Input name="receivedOn" type="date" required />
+                <Input name="receivedOn" type="date" required defaultValue={todayInputValue()} />
               </label>
               <label className="space-y-2 text-sm font-medium text-foreground">
                 <span>Reference number</span>
-                <Input name="referenceNo" placeholder="Required for UPI, cheque, online, or bank transfer" />
+                <Input
+                  name="referenceNo"
+                  placeholder="Required for bank transfer, UPI, cheque, or online"
+                />
               </label>
             </div>
 
@@ -124,7 +131,7 @@ export default async function CollectionsPage({
               />
             </label>
 
-            <div className="sticky bottom-4 rounded-[1.25rem] border border-border bg-white/95 p-3 backdrop-blur">
+            <div className="sticky bottom-[calc(1rem+env(safe-area-inset-bottom))] rounded-[1.25rem] border border-border bg-white/95 p-3 backdrop-blur">
               <FormSubmitButton className="w-full justify-center py-3">
                 Record payment
               </FormSubmitButton>
@@ -154,8 +161,8 @@ export default async function CollectionsPage({
                 description="Enroll a member into a chit group to generate collection work."
               />
             ) : (
-              <div className="overflow-hidden rounded-2xl border border-border">
-                <table className="min-w-full divide-y divide-border text-sm">
+              <div className="overflow-x-auto rounded-2xl border border-border">
+                <table className="min-w-[760px] divide-y divide-border text-sm">
                   <thead className="bg-surface-strong/50 text-left text-muted">
                     <tr>
                       <th className="px-4 py-3 font-medium">Member</th>
@@ -249,8 +256,8 @@ export default async function CollectionsPage({
                 description="Recorded installment payments will appear here with their reference and receipt date."
               />
             ) : (
-              <div className="overflow-hidden rounded-2xl border border-border">
-                <table className="min-w-full divide-y divide-border text-sm">
+              <div className="overflow-x-auto rounded-2xl border border-border">
+                <table className="min-w-[760px] divide-y divide-border text-sm">
                   <thead className="bg-surface-strong/50 text-left text-muted">
                     <tr>
                       <th className="px-4 py-3 font-medium">Member</th>

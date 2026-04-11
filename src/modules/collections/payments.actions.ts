@@ -43,7 +43,12 @@ export async function recordInstallmentPaymentAction(formData: FormData) {
   }
 
   revalidatePath(collectionsPath);
+  revalidatePath("/dashboard");
   revalidatePath("/chit-funds");
+  revalidatePath("/members");
+  revalidatePath("/reports");
+  revalidatePath("/reports/pilot");
+  revalidatePath("/exports");
   redirect(
     buildFeedbackHref(
       collectionsPath,
