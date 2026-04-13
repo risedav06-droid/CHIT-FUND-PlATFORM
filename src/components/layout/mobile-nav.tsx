@@ -19,19 +19,19 @@ export function MobileNav({ items }: MobileNavProps) {
   }
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+    <nav className="glass-shell fixed inset-x-3 bottom-3 z-40 rounded-[calc(var(--radius-card)+6px)] px-3 py-3 shadow-[var(--shadow-float)] lg:hidden">
       <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto pb-1">
         {items.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             className={cn(
-              "relative min-w-[5.5rem] flex-1 rounded-2xl border border-border bg-surface/60 px-3 py-3 text-center text-xs font-semibold text-foreground transition hover:border-brand hover:text-brand",
+              "relative min-w-[5.5rem] flex-1 rounded-[var(--radius-button)] px-3 py-3 text-center text-[11px] font-medium tracking-[0.06em] text-[var(--text-body)] transition hover:bg-white/90 hover:text-[var(--color-primary-container)]",
             )}
           >
             {item.title}
             {item.badgeCount && item.badgeCount > 0 ? (
-              <span className="absolute right-2 top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] text-brand-foreground">
+              <span className="absolute right-2 top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-[var(--color-primary-container)] px-1 text-[10px] text-white">
                 {item.badgeCount > 9 ? "9+" : item.badgeCount}
               </span>
             ) : null}

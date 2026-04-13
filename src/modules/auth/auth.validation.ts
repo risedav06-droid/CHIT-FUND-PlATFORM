@@ -1,18 +1,12 @@
 import { z } from "zod";
 
-const optionalText = z
+export const phoneSchema = z
   .string()
   .trim()
-  .optional()
-  .transform((value) => (value && value.length > 0 ? value : undefined));
+  .transform((value) => value.replace(/\D/g, ""))
+  .refine((value) => value.length === 10, "Enter a valid 10-digit phone number");
 
-export const loginSchema = z.object({
-  email: z.string().trim().email("Enter a valid email address."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
-  next: optionalText.refine(
-    (value) => !value || (value.startsWith("/") && !value.startsWith("//")),
-    "Enter a valid internal redirect path.",
-  ),
-});
-
-export type LoginInput = z.infer<typeof loginSchema>;
+export const otpSchema = z
+  .string()
+  .trim()
+  .refine((value) => value.length === 6, "Enter the 6-digit code.");

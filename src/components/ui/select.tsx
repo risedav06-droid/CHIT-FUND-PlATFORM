@@ -6,7 +6,7 @@ export function Select({ className, ...props }: ComponentProps<"select">) {
   return (
     <select
       className={cn(
-        "h-11 w-full rounded-xl border border-border bg-white px-3 text-sm text-foreground outline-none transition focus:border-brand",
+        "recessed-input h-11 appearance-none text-sm text-[var(--color-text-primary)]",
         className,
       )}
       {...props}

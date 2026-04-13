@@ -6,7 +6,7 @@ export function Input({ className, ...props }: ComponentProps<"input">) {
   return (
     <input
       className={cn(
-        "h-11 w-full rounded-xl border border-border bg-white px-3 text-sm text-foreground outline-none transition placeholder:text-muted/70 focus:border-brand",
+        "recessed-input h-11 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]/80",
         className,
       )}
       {...props}

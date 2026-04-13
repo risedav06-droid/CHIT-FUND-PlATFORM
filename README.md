@@ -1,19 +1,18 @@
-# ChitFlow Platform
+# ChitMate
 
-ChitFlow is a chit fund management platform built with Next.js 16, TypeScript, Tailwind CSS v4, and Prisma.
+ChitMate is a dual-portal chit fund platform for organisers and members, built with Next.js 16, TypeScript, Tailwind CSS v4, and Supabase.
 
-## Foundation Status
+## Product Overview
 
-The repo now follows a scalable `src`-based architecture:
+The repo follows a `src`-based structure:
 
 - `src/app` for routes and layouts
-- `src/components` for shared UI and providers
-- `src/config` for site and navigation config
+- `src/components` for shared UI
+- `src/config` for site metadata
 - `src/lib` for framework-agnostic utilities
-- `src/server` for server-only env and database code
-- `src/generated/prisma` for the generated Prisma client
-
-The target folder plan is documented in `docs/architecture.md`.
+- `src/modules` for domain logic
+- `src/utils/supabase` for auth, session, and data helpers
+- `supabase/schema.sql` for the current database reference schema
 
 ## Local Development
 
@@ -26,23 +25,19 @@ npm install
 2. Add environment variables:
 
 ```bash
-Copy-Item .env.example .env
+cp .env.example .env.local
 ```
 
-3. Generate the Prisma client:
-
-```bash
-npx prisma generate
-```
-
-4. Start the app:
+3. Start the app:
 
 ```bash
 npm run dev
 ```
 
-## Next Steps
+## Current Focus
 
-- Add Prisma models and migrations for chit funds, members, installments, auctions, and collections
-- Introduce authentication and role-based access
-- Build feature modules incrementally inside `src/modules`
+- organiser phone OTP access
+- token-based member portal access
+- organiser-owned chit group operations
+- Digital Ledger design system rollout
+- Supabase-only data migration

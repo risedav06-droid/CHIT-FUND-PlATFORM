@@ -11,16 +11,16 @@ export function FormFeedback({ status, message }: PageFeedback) {
       aria-live="polite"
       role={status === "error" ? "alert" : "status"}
       className={cn(
-        "rounded-2xl border px-4 py-3",
+        "mt-6 rounded-[var(--radius-card)] px-5 py-4 shadow-[var(--shadow-card)]",
         status === "success"
-          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-          : "border-rose-200 bg-rose-50 text-rose-800",
+          ? "bg-[var(--color-success-bg)] text-[var(--color-success-text)]"
+          : "bg-[var(--color-error-bg)] text-[var(--color-error-text)]",
       )}
     >
-      <p className="text-sm font-semibold">
+      <p className="editorial-label text-current">
         {status === "success" ? "Saved" : "Action needed"}
       </p>
-      <p className="mt-1 text-sm leading-6">{message}</p>
+      <p className="mt-2 text-sm leading-7">{message}</p>
     </div>
   );
 }

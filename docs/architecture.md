@@ -1,6 +1,6 @@
-# ChitFlow Architecture
+# ChitMate Architecture
 
-This repo now uses a `src`-first structure aligned with the Next.js 16 App Router.
+This repo uses a `src`-first structure aligned with the Next.js App Router and a Supabase backend.
 
 ## Current implementation
 
@@ -8,46 +8,14 @@ This repo now uses a `src`-first structure aligned with the Next.js 16 App Route
 src/
   app/
   components/
-    providers/
-  config/
-  lib/
-  server/
-    db/
-```
-
-## Target scalable structure
-
-```text
-src/
-  app/
-    (marketing)/
-    (auth)/
-    (platform)/
-    api/
-  components/
-    layout/
-    providers/
-    shared/
-    ui/
   config/
   lib/
   modules/
-    auth/
-    auctions/
-    chit-funds/
-    collections/
-    members/
-    reports/
-    settings/
   server/
-    db/
-    repositories/
-    services/
-  types/
-  generated/
-    prisma/
-prisma/
-  schema.prisma
+  utils/
+    supabase/
+supabase/
+  schema.sql
 ```
 
 ## Rules of thumb
@@ -55,5 +23,5 @@ prisma/
 - Keep route files in `src/app`
 - Put reusable UI in `src/components`
 - Put domain-specific logic in `src/modules`
-- Keep database and env code in `src/server`
-- Treat `src/generated/prisma` as generated code only
+- Keep Supabase helpers in `src/utils/supabase`
+- Keep server-only env validation in `src/server`

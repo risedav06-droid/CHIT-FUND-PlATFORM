@@ -6,19 +6,19 @@ import { authService } from "@/modules/auth/auth.service";
 
 const foundationItems = [
   {
-    title: "Next.js 16 App Router",
+    title: "Organiser-first operations",
     description:
-      "Routes now live under src/app, which keeps framework files separate from project configuration.",
+      "Run collections, auctions, and member communication from one warm dashboard built for daily fund operations.",
   },
   {
-    title: "Server-first structure",
+    title: "Member trust built in",
     description:
-      "Environment parsing and Prisma access live in src/server so database logic stays out of UI files.",
+      "Every member gets a private portal link with clear payment history, pot progress, and organiser contact details.",
   },
   {
-    title: "Feature-ready modules",
+    title: "Built for Indian chit funds",
     description:
-      "Business domains such as members, auctions, collections, and reports can grow independently in src/modules.",
+      "Phone OTP access, WhatsApp-ready workflows, and transparent monthly cycles keep the experience practical and familiar.",
   },
 ] as const;
 
@@ -26,63 +26,77 @@ export default async function HomePage() {
   await authService.redirectIfAuthenticated();
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-12 px-6 py-12 lg:px-10">
-      <section className="rounded-[2rem] border border-border bg-surface px-8 py-10 shadow-[0_24px_80px_-48px_rgba(31,27,23,0.45)]">
-        <span className="inline-flex rounded-full bg-brand/10 px-3 py-1 text-sm font-medium text-brand">
-          Foundation pass
+    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-10 px-6 py-10 lg:px-10 lg:py-14">
+      <section className="grid gap-6 rounded-[var(--radius-card)] bg-[linear-gradient(135deg,rgba(245,243,240,0.94),rgba(255,255,255,0.82))] px-8 py-10 shadow-[var(--shadow-float)] lg:grid-cols-[1.25fr_0.75fr] lg:px-10 lg:py-12">
+        <div>
+        <span className="editorial-label rounded-full bg-[rgba(212,168,67,0.14)] px-3 py-1">
+          The Digital Ledger
         </span>
         <div className="mt-6 max-w-3xl space-y-4">
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+          <h1 className="text-4xl text-foreground sm:text-6xl">
             {siteConfig.name}
           </h1>
-          <p className="text-lg leading-8 text-muted">
-            A structured foundation for managing chit funds, members,
-            installments, auctions, collections, and reporting without
-            overbuilding the first iteration.
+          <p className="max-w-2xl text-base leading-8 text-[var(--text-body)] sm:text-lg">
+            Chit fund management for modern organisers in India, blending warm editorial design with practical control over groups, payments, auctions, and member trust.
           </p>
           <Link
             href="/login"
-            className="inline-flex rounded-full bg-brand px-5 py-3 text-sm font-semibold text-brand-foreground transition hover:opacity-95"
+            className="primary-button inline-flex rounded-full px-5 py-3 text-sm font-semibold hover:-translate-y-0.5"
           >
-            Sign in to the pilot workspace
+            Sign in to ChitMate
           </Link>
         </div>
+        </div>
+
+        <aside className="card-surface flex flex-col justify-between rounded-[var(--radius-card)] bg-[rgba(255,255,255,0.9)] p-6">
+          <div>
+            <p className="editorial-label">Today&apos;s view</p>
+            <p className="display-number mt-4 text-5xl text-foreground">3</p>
+            <p className="mt-3 text-sm leading-7 text-[var(--text-body)]">
+              connected workstreams across organiser control, member transparency, and collection follow-through.
+            </p>
+          </div>
+          <p className="mt-6 text-xs uppercase tracking-[0.16em] text-[var(--text-body)]">
+            The Digital Ledger
+          </p>
+        </aside>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-[0.9fr_1.1fr_1fr]">
         {foundationItems.map((item) => (
           <article
             key={item.title}
-            className="rounded-[1.5rem] border border-border bg-white/80 p-6 backdrop-blur"
+            className="card-surface rounded-[var(--radius-card)] bg-[rgba(255,255,255,0.9)] p-6"
           >
-            <h2 className="text-xl font-semibold text-foreground">
+            <p className="editorial-label">Foundation</p>
+            <h2 className="mt-3 text-xl text-foreground">
               {item.title}
             </h2>
-            <p className="mt-3 text-sm leading-7 text-muted">
+            <p className="mt-3 text-sm leading-7 text-[var(--text-body)]">
               {item.description}
             </p>
           </article>
         ))}
       </section>
 
-      <section className="rounded-[2rem] border border-border bg-[#1f1b17] px-8 py-10 text-white">
+      <section className="rounded-[var(--radius-card)] bg-[linear-gradient(135deg,#012d1d,#1b4332)] px-8 py-10 text-white shadow-[var(--shadow-float)]">
         <div className="max-w-2xl">
-          <h2 className="text-2xl font-semibold">Planned platform modules</h2>
+          <p className="editorial-label !text-[rgba(255,255,255,0.72)]">Platform coverage</p>
+          <h2 className="mt-3 text-3xl">Everything your fund needs in one place</h2>
           <p className="mt-3 text-sm leading-7 text-white/72">
-            These are the main business areas the next implementation passes
-            will build out on top of this base architecture.
+            From onboarding to disbursement, ChitMate keeps the operating rhythm of a traditional chit fund while making the records far easier to run and review.
           </p>
         </div>
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {platformSections.map((section) => (
             <article
               key={section.title}
-              className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5"
+              className="rounded-[var(--radius-card)] bg-white/8 p-5"
             >
-              <p className="text-sm font-medium text-brand-foreground/80">
+              <p className="editorial-label !text-[rgba(255,255,255,0.72)]">
                 {section.href}
               </p>
-              <h3 className="mt-3 text-lg font-semibold">{section.title}</h3>
+              <h3 className="mt-3 text-lg">{section.title}</h3>
               <p className="mt-2 text-sm leading-7 text-white/70">
                 {section.description}
               </p>

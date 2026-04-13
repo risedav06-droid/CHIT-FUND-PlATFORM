@@ -7,11 +7,15 @@ import { cn } from "@/lib/utils";
 type FormSubmitButtonProps = {
   children: React.ReactNode;
   className?: string;
+  variant?: "primary" | "amber";
+  pendingLabel?: string;
 };
 
 export function FormSubmitButton({
   children,
   className,
+  variant = "primary",
+  pendingLabel = "Working...",
 }: FormSubmitButtonProps) {
   const { pending } = useFormStatus();
 
@@ -20,11 +24,12 @@ export function FormSubmitButton({
       type="submit"
       disabled={pending}
       className={cn(
-        "inline-flex items-center justify-center rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-brand-foreground transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60",
+        variant === "amber" ? "amber-button" : "primary-button",
+        "disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0",
         className,
       )}
     >
-      {pending ? "Saving..." : children}
+      {pending ? pendingLabel : children}
     </button>
   );
 }
