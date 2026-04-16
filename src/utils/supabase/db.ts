@@ -261,20 +261,28 @@ export async function addMemberToGroup(input: {
     (paymentCycles ?? [])[0];
 
   if (currentCycle) {
-    const { error: paymentsError } = await supabase.from("payments").insert({
+    const { data: payment, error: paymentsError } = await supabase.from("payments").insert({
       cycle_id: currentCycle.id,
       member_id: member.id,
       amount_due: group?.monthly_amount ?? 0,
       amount_paid: 0,
       status: "unpaid",
-    });
+    }).select("*").single();
 
     if (paymentsError) {
       throw new Error(paymentsError.message);
     }
+
+    return {
+      ...member,
+      payments: payment ? [payment] : [],
+    };
   }
 
-  return member;
+  return {
+    ...member,
+    payments: [],
+  };
 }
 
 export async function markPaymentPaid(paymentId: string) {

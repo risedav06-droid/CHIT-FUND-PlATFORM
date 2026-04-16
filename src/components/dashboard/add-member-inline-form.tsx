@@ -12,6 +12,7 @@ type AddMemberInlineFormProps = {
   chitGroupId: string;
   disabled?: boolean;
   disabledMessage?: string;
+  onMemberAdded?: (payload: NonNullable<AddMemberFormState["member"]>, payment: AddMemberFormState["currentPayment"]) => void;
 };
 
 const initialState: AddMemberFormState = {};
@@ -20,6 +21,7 @@ export function AddMemberInlineForm({
   chitGroupId,
   disabled = false,
   disabledMessage,
+  onMemberAdded,
 }: AddMemberInlineFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -30,9 +32,12 @@ export function AddMemberInlineForm({
       return;
     }
 
+    if (state.member) {
+      onMemberAdded?.(state.member, state.currentPayment ?? null);
+    }
     formRef.current?.reset();
     router.refresh();
-  }, [router, state.success]);
+  }, [onMemberAdded, router, state.currentPayment, state.member, state.success]);
 
   return (
     <form

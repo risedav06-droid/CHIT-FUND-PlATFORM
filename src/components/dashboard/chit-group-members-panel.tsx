@@ -3,6 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import type { AddMemberFormState } from "@/app/(platform)/dashboard/chit-groups/actions";
+import { AddMemberInlineForm } from "@/components/dashboard/add-member-inline-form";
 import { MemberActionsMenu } from "@/components/dashboard/member-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MemberRow } from "@/components/ui/member-row";
@@ -31,7 +33,6 @@ type ChitGroupMembersPanelProps = {
   monthLabel: string;
   memberTargetCount: number;
   monthlyAmount: number;
-  memberCount: number;
   memberLimit: number;
   limitReached: boolean;
   isAuctionType: boolean;
@@ -39,7 +40,6 @@ type ChitGroupMembersPanelProps = {
   nextAuctionDate: string;
   daysUntilDue: number | null;
   defaulterCount: number;
-  addMemberForm?: React.ReactNode;
 };
 
 function initials(name: string) {
@@ -57,7 +57,6 @@ export function ChitGroupMembersPanel({
   monthLabel,
   memberTargetCount,
   monthlyAmount,
-  memberCount,
   memberLimit,
   limitReached,
   isAuctionType,
@@ -65,14 +64,13 @@ export function ChitGroupMembersPanel({
   nextAuctionDate,
   daysUntilDue,
   defaulterCount,
-  addMemberForm,
 }: ChitGroupMembersPanelProps) {
   const router = useRouter();
   const [members, setMembers] = useState(initialMembers);
   const [toast, setToast] = useState<string | null>(null);
-  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
-  const [paymentMode, setPaymentMode] = useState("cash");
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [openPaymentId, setOpenPaymentId] = useState<string | null>(null);
+  const [selectedMode, setSelectedMode] = useState("Cash");
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0] ?? "");
   const [notes, setNotes] = useState("");
   const [, startTransition] = useTransition();
 
@@ -126,39 +124,40 @@ export function ChitGroupMembersPanel({
     };
   }, [defaulterCount, members.length, stats.collectionRate, stats.paidCount]);
 
-  const closeModal = () => {
-    setPendingPaymentId(null);
-    setPaymentMode("cash");
-    setPaymentDate(new Date().toISOString().slice(0, 10));
-    setNotes("");
-  };
-
-  const openPayment = (paymentId: string) => {
-    setPendingPaymentId(paymentId);
+  const handleMemberAdded = (
+    member: NonNullable<AddMemberFormState["member"]>,
+    currentPayment: AddMemberFormState["currentPayment"],
+  ) => {
+    setMembers((current) => [
+      ...current,
+      {
+        member,
+        currentPayment: currentPayment ?? {
+          id: `temp-${member.id}`,
+          amount_due: monthlyAmount,
+          amount_paid: 0,
+          status: "unpaid",
+        },
+      },
+    ]);
+    setToast(`${member.name} added successfully ✓`);
+    window.setTimeout(() => setToast(null), 2400);
   };
 
   const copyAllLinks = async () => {
-    const message = [
-      `ChitMate — ${chitName}`,
-      "",
-      "Member Portal Links:",
-      "",
-      ...members.map(
-        (entry) => `${entry.member.name}: ${window.location.origin}/member/${entry.member.invite_token}`,
-      ),
-      "",
-      "Click your link to view your payment history and chit details.",
-    ].join("\n\n");
+    const shareText = `ChitMate — ${chitName}\n\nMember Portal Links:\n\n${members
+      .map((entry) => `${entry.member.name}: ${window.location.origin}/member/${entry.member.invite_token}`)
+      .join("\n\n")}\n\nClick your link to view your payment history and chit details.`;
 
     if (navigator.share) {
       await navigator.share({
         title: "ChitMate Member Links",
-        text: message,
+        text: shareText,
       });
       return;
     }
 
-    await navigator.clipboard.writeText(message);
+    await navigator.clipboard.writeText(shareText);
     setToast("Copied! ✓");
     window.setTimeout(() => setToast(null), 2400);
   };
@@ -172,52 +171,60 @@ export function ChitGroupMembersPanel({
     }
 
     const memberList = unpaidMembers.map((entry) => `• ${entry.member.name}`).join("\n");
-    const dueLine = daysUntilDue !== null && nextAuctionDate !== "Schedule pending"
-      ? ` by *${nextAuctionDate}*`
-      : "";
-    const message = `Dear members of *${chitName}* 🙏\n\nThis is a friendly reminder that your contribution of *₹${Number(monthlyAmount).toLocaleString('en-IN')}* is due${dueLine}.\n\nPending payments:\n${memberList}\n\nPlease pay at your earliest convenience.\n\n_Managed via ChitMate_`;
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    const dueLine =
+      nextAuctionDate && nextAuctionDate !== "Schedule pending"
+        ? ` by *${nextAuctionDate}*`
+        : "";
+    const message = `Dear members of *${chitName}* 🙏\n\nThis is a friendly reminder that your contribution of *₹${Number(monthlyAmount).toLocaleString("en-IN")}* is due${dueLine}.\n\nPending payments:\n${memberList}\n\nPlease pay at your earliest convenience.\n\n_Managed via ChitMate_`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
   };
 
-  const confirmPayment = () => {
-    if (!pendingPaymentId) {
-      return;
-    }
+  const openPayment = (paymentId: string) => {
+    setOpenPaymentId(paymentId);
+    setSelectedMode("Cash");
+    setPaymentDate(new Date().toISOString().split("T")[0] ?? "");
+    setNotes("");
+  };
 
-    const target = members.find((entry) => entry.currentPayment?.id === pendingPaymentId);
+  const closePaymentPanel = () => {
+    setOpenPaymentId(null);
+    setSelectedMode("Cash");
+    setPaymentDate(new Date().toISOString().split("T")[0] ?? "");
+    setNotes("");
+  };
 
-    if (!target) {
+  const confirmPayment = (paymentId: string) => {
+    const target = members.find((entry) => entry.currentPayment?.id === paymentId);
+
+    if (!target?.currentPayment) {
       return;
     }
 
     const previousMembers = members;
     setMembers((current) =>
       current.map((entry) =>
-        entry.currentPayment?.id === pendingPaymentId
+        entry.currentPayment?.id === paymentId
           ? {
               ...entry,
-              currentPayment: entry.currentPayment
-                ? {
-                    ...entry.currentPayment,
-                    amount_paid: entry.currentPayment.amount_due,
-                    status: "paid",
-                  }
-                : entry.currentPayment,
+              currentPayment: {
+                ...entry.currentPayment,
+                amount_paid: entry.currentPayment.amount_due,
+                status: "paid",
+              },
             }
           : entry,
       ),
     );
-
-    closeModal();
+    setOpenPaymentId(null);
 
     startTransition(async () => {
       const response = await fetch("/api/payments/mark-paid", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          paymentId: pendingPaymentId,
-          paymentMode,
+          paymentId,
+          paymentMode: selectedMode.toLowerCase().replace(/\s+/g, "_"),
           paymentDate,
           notes,
         }),
@@ -256,11 +263,11 @@ export function ChitGroupMembersPanel({
               </div>
               <div className="flex items-center gap-3">
                 <span className="ledger-chip bg-[var(--color-surface-low)] text-[var(--color-text-body)]">
-                  {memberCount} / {memberLimit} members
+                  {members.length} / {memberLimit} members
                 </span>
                 <a
                   href="#add-member-form"
-                  className={`primary-button ${limitReached ? "pointer-events-none opacity-50" : ""}`}
+                  className={`primary-button ${limitReached || members.length >= memberLimit ? "pointer-events-none opacity-50" : ""}`}
                 >
                   Add Member
                 </a>
@@ -307,46 +314,166 @@ export function ChitGroupMembersPanel({
                 subtitle="Once members are added, this table will show collection status, reminders, and portal links."
               />
             ) : (
-              <div id="payments" className="space-y-3">
+              <div className="space-y-3">
+                {members.map((entry, index) => (
+                  (() => {
+                    const unpaidPaymentId =
+                      entry.currentPayment && entry.currentPayment.status !== "paid"
+                        ? entry.currentPayment.id
+                        : null;
+
+                    return (
+                      <div
+                        key={entry.member.id}
+                        id={`member-${entry.member.id}`}
+                        className={`rounded-[var(--radius-card)] ${
+                          index % 2 === 0 ? "bg-white" : "bg-[var(--color-surface-low)]"
+                        }`}
+                      >
+                        <MemberRow
+                          name={entry.member.name}
+                          phone={entry.member.phone}
+                          initials={initials(entry.member.name)}
+                          amount={formatCurrency(Number(entry.currentPayment?.amount_due ?? monthlyAmount))}
+                          status={(entry.currentPayment?.status ?? "unpaid") as "paid" | "unpaid" | "partial"}
+                          potTaken={Boolean(entry.member.pot_taken)}
+                          actions={
+                            <MemberActionsMenu
+                              groupId={groupId}
+                              memberId={entry.member.id}
+                              token={entry.member.invite_token}
+                              chitName={chitName}
+                              canMarkPaid={Boolean(unpaidPaymentId)}
+                              onMarkPaid={unpaidPaymentId ? () => openPayment(unpaidPaymentId) : undefined}
+                            />
+                          }
+                        />
+                      </div>
+                    );
+                  })()
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section id="payments" className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
+            <div className="mb-5">
+              <h2>Payments</h2>
+              <p className="mt-1 text-sm text-[var(--color-text-body)]">
+                Confirm collection for each member in the current cycle.
+              </p>
+            </div>
+
+            {members.length === 0 ? (
+              <EmptyState
+                title="No payments yet"
+                subtitle="Add members first and their current-cycle payment rows will appear here."
+              />
+            ) : (
+              <div className="space-y-3">
                 {members.map((entry, index) => (
                   <div
-                    key={entry.member.id}
-                    id={`member-${entry.member.id}`}
-                    className={`rounded-[var(--radius-card)] ${
+                    key={`${entry.member.id}-payment`}
+                    className={`rounded-[var(--radius-card)] p-4 ${
                       index % 2 === 0 ? "bg-white" : "bg-[var(--color-surface-low)]"
                     }`}
                   >
-                    <MemberRow
-                      name={entry.member.name}
-                      phone={entry.member.phone}
-                      initials={initials(entry.member.name)}
-                      amount={formatCurrency(Number(entry.currentPayment?.amount_due ?? monthlyAmount))}
-                      status={(entry.currentPayment?.status ?? "unpaid") as "paid" | "unpaid" | "partial"}
-                      potTaken={Boolean(entry.member.pot_taken)}
-                      actions={
-                        <MemberActionsMenu
-                          groupId={groupId}
-                          memberId={entry.member.id}
-                          token={entry.member.invite_token}
-                          chitName={chitName}
-                          canMarkPaid={Boolean(
-                            entry.currentPayment && entry.currentPayment.status !== "paid",
-                          )}
-                          onMarkPaid={
-                            entry.currentPayment && entry.currentPayment.status !== "paid"
-                              ? () => openPayment(entry.currentPayment!.id)
-                              : undefined
-                          }
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-medium text-[var(--color-text-primary)]">{entry.member.name}</p>
+                        <p className="text-sm text-[var(--color-text-body)]">{entry.member.phone}</p>
+                      </div>
+                      <div className="flex flex-col gap-2 md:items-end">
+                        <p className="font-medium text-[var(--color-text-primary)]">
+                          {formatCurrency(Number(entry.currentPayment?.amount_due ?? monthlyAmount))}
+                        </p>
+                        {entry.currentPayment?.status === "paid" ? (
+                          <span className="ledger-chip bg-[var(--color-success-bg)] text-[var(--color-success-text)]">
+                            Paid
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => entry.currentPayment && openPayment(entry.currentPayment.id)}
+                            className="amber-button"
+                          >
+                            Mark Paid
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {openPaymentId === entry.currentPayment?.id ? (
+                      <div className="mt-3 rounded-[var(--radius-card)] bg-[var(--color-surface-low)] p-4">
+                        <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                          Mark payment for {entry.member.name}
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {["Cash", "UPI", "Bank Transfer", "Other"].map((mode) => (
+                            <button
+                              key={mode}
+                              type="button"
+                              onClick={() => setSelectedMode(mode)}
+                              className={`rounded-[var(--radius-button)] px-3 py-2 text-[0.8125rem] ${
+                                selectedMode === mode
+                                  ? "bg-[rgba(1,45,29,0.08)] text-[var(--color-primary)] shadow-[inset_0_0_0_2px_#1b4332]"
+                                  : "bg-white text-[var(--color-text-body)] shadow-[inset_0_0_0_1px_rgba(209,213,219,1)]"
+                              }`}
+                            >
+                              {mode}
+                            </button>
+                          ))}
+                        </div>
+
+                        <input
+                          type="date"
+                          value={paymentDate}
+                          onChange={(event) => setPaymentDate(event.target.value)}
+                          className="recessed-input mt-3 h-11 w-full"
                         />
-                      }
-                    />
+
+                        <textarea
+                          value={notes}
+                          onChange={(event) => setNotes(event.target.value)}
+                          placeholder="Optional notes"
+                          className="recessed-input mt-3 min-h-24 w-full"
+                        />
+
+                        <div className="mt-3 flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => entry.currentPayment && confirmPayment(entry.currentPayment.id)}
+                            className="primary-button w-full justify-center"
+                          >
+                            Confirm Payment
+                          </button>
+                          <button
+                            type="button"
+                            onClick={closePaymentPanel}
+                            className="ghost-button w-full justify-center"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>
             )}
           </section>
 
-          {addMemberForm}
+          <AddMemberInlineForm
+            chitGroupId={groupId}
+            disabled={limitReached || members.length >= memberLimit}
+            disabledMessage={
+              limitReached || members.length >= memberLimit
+                ? `This chit is full. You set a limit of ${memberLimit} members when creating this chit.`
+                : undefined
+            }
+            onMemberAdded={handleMemberAdded}
+          />
         </div>
 
         <div className="flex flex-col gap-4 xl:sticky xl:top-6">
@@ -361,9 +488,7 @@ export function ChitGroupMembersPanel({
             <div className="mt-3 h-2 rounded-full bg-[var(--color-surface-low)]">
               <div
                 className="h-2 rounded-full bg-[var(--color-primary-container)]"
-                style={{
-                  width: `${stats.collectionRate}%`,
-                }}
+                style={{ width: `${stats.collectionRate}%` }}
               />
             </div>
             <div className="mt-5 grid grid-cols-2 gap-4">
@@ -465,65 +590,6 @@ export function ChitGroupMembersPanel({
           </section>
         </div>
       </div>
-
-      {pendingPaymentId ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[rgba(27,28,26,0.18)] px-4">
-          <div className="w-full max-w-lg rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-float)]">
-            <h3>Mark as Paid</h3>
-            <div className="mt-5 space-y-4">
-              <div>
-                <p className="editorial-label !text-[var(--color-text-muted)]">Payment Mode</p>
-                <div className="mt-3 flex flex-wrap gap-3">
-                  {["cash", "upi", "bank_transfer", "other"].map((mode) => (
-                    <label
-                      key={mode}
-                      className={`rounded-[var(--radius-button)] px-4 py-3 text-sm ${
-                        paymentMode === mode
-                          ? "bg-[rgba(1,45,29,0.08)] text-[var(--color-primary)] shadow-[inset_0_0_0_2px_#1b4332]"
-                          : "bg-[var(--color-surface-low)] text-[var(--color-text-body)]"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        className="sr-only"
-                        checked={paymentMode === mode}
-                        onChange={() => setPaymentMode(mode)}
-                      />
-                      {mode.replaceAll("_", " ")}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <label className="space-y-2">
-                <span className="editorial-label !text-[var(--color-text-muted)]">Payment Date</span>
-                <input
-                  type="date"
-                  value={paymentDate}
-                  onChange={(event) => setPaymentDate(event.target.value)}
-                  className="recessed-input h-11 w-full"
-                />
-              </label>
-              <label className="space-y-2">
-                <span className="editorial-label !text-[var(--color-text-muted)]">Notes</span>
-                <textarea
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                  className="recessed-input min-h-24 w-full"
-                  placeholder="Optional receipt note"
-                />
-              </label>
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button type="button" className="primary-button flex-1 justify-center" onClick={confirmPayment}>
-                Confirm
-              </button>
-              <button type="button" className="ghost-button flex-1 justify-center" onClick={closeModal}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }

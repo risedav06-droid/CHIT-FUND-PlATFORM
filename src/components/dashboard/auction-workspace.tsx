@@ -1,5 +1,6 @@
 'use client';
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { StatusChip } from "@/components/ui/status-chip";
@@ -47,6 +48,9 @@ export function AuctionWorkspace({
   return (
     <div className="space-y-6">
       <section className="rounded-[var(--radius-card)] bg-white px-8 py-8 shadow-[var(--shadow-card)]">
+        <Link href={`/dashboard/chit-groups/${groupId}`} className="editorial-label">
+          ← Back to Chit Groups
+        </Link>
         <p className="editorial-label">Chit Groups &gt; Auction</p>
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>

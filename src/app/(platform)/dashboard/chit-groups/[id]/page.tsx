@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { differenceInCalendarDays, format } from "date-fns";
 
-import { AddMemberInlineForm } from "@/components/dashboard/add-member-inline-form";
 import { ChitGroupMembersPanel } from "@/components/dashboard/chit-group-members-panel";
 import { StatusChip } from "@/components/ui/status-chip";
 import { authService } from "@/modules/auth/auth.service";
@@ -139,23 +138,11 @@ export default async function DashboardChitGroupDetailPage({
         memberTargetCount={Number(group.member_count ?? 0)}
         monthlyAmount={monthlyAmount}
         isAuctionType={group.chit_type === "auction"}
-        memberCount={members.length}
         memberLimit={Number(group.member_count ?? 0)}
         limitReached={limitReached}
         nextAuctionDate={nextAuctionDate}
         daysUntilDue={daysUntilDue}
         defaulterCount={defaulterCount}
-        addMemberForm={
-          <AddMemberInlineForm
-            chitGroupId={group.id}
-            disabled={limitReached}
-            disabledMessage={
-              limitReached
-                ? `This chit is full. You set a limit of ${Number(group.member_count ?? 0)} members when creating this chit.`
-                : undefined
-            }
-          />
-        }
         initialMembers={currentMemberRows.map(({ member, currentPayment }) => ({
           member: {
             id: member.id,

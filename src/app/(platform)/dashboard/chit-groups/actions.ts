@@ -18,6 +18,20 @@ export type CreateChitGroupFormState = {
 export type AddMemberFormState = {
   error?: string;
   success?: boolean;
+  member?: {
+    id: string;
+    name: string;
+    phone: string;
+    whatsapp_phone?: string | null;
+    invite_token: string;
+    pot_taken: boolean;
+  };
+  currentPayment?: {
+    id: string;
+    amount_due: number;
+    amount_paid: number;
+    status: "paid" | "unpaid" | "partial";
+  } | null;
 };
 
 function validateCreateChitGroup(formData: FormData): CreateChitGroupFormState {
@@ -148,13 +162,13 @@ export async function addMemberToDashboardChitGroupAction(
   const chitGroupId = String(formData.get("chitGroupId") || "");
 
   if (!user) {
-    return { error: "Please sign in again." };
+    return { error: "Please sign in again.", success: false };
   }
 
   const detail = await getDashboardChitGroupDetail(chitGroupId, user.id);
 
   if (!detail.data?.group) {
-    return { error: "This chit group could not be found." };
+    return { error: "This chit group could not be found.", success: false };
   }
 
   const currentMembers = (detail.data.members as any[]) ?? [];
@@ -163,11 +177,14 @@ export async function addMemberToDashboardChitGroupAction(
   if (currentMembers.length >= memberLimit) {
     return {
       error: `This chit is full. You set a limit of ${memberLimit} members when creating this chit.`,
+      success: false,
     };
   }
 
+  let member;
+
   try {
-    await addMemberToGroup({
+    member = await addMemberToGroup({
       chitGroupId,
       name: String(formData.get("name") || ""),
       phone: String(formData.get("phone") || ""),
@@ -176,12 +193,31 @@ export async function addMemberToDashboardChitGroupAction(
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Could not add member.",
+      success: false,
     };
   }
 
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/chit-groups/${chitGroupId}`);
-  return { success: true };
+  return {
+    success: true,
+    member: {
+      id: member.id,
+      name: member.name,
+      phone: member.phone,
+      whatsapp_phone: member.whatsapp_phone,
+      invite_token: member.invite_token,
+      pot_taken: Boolean(member.pot_taken),
+    },
+    currentPayment: member.payments?.[0]
+      ? {
+          id: member.payments[0].id,
+          amount_due: Number(member.payments[0].amount_due ?? 0),
+          amount_paid: Number(member.payments[0].amount_paid ?? 0),
+          status: (member.payments[0].status ?? "unpaid") as "paid" | "unpaid" | "partial",
+        }
+      : null,
+  };
 }
 
 export async function updateDashboardMemberAction(formData: FormData) {
