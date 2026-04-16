@@ -1,6 +1,7 @@
-import { addMonths } from "date-fns";
+import { addMonths, differenceInCalendarDays, format, startOfMonth, subMonths } from "date-fns";
 
 import { isValidIndianPhone, normalizePhone } from "@/lib/phone";
+import { formatCurrency } from "@/lib/utils";
 
 import { createClient } from "./server";
 
@@ -89,6 +90,352 @@ export async function getOrganiserDashboardData(organiserId: string) {
       (sum, auction: any) => sum + Number(auction.foreman_commission ?? 0),
       0,
     ),
+  };
+}
+
+function monthKeyFor(value: string | Date) {
+  const date = typeof value === "string" ? new Date(value) : value;
+  return format(date, "yyyy-MM");
+}
+
+function monthLabelFor(value: string | Date) {
+  const date = typeof value === "string" ? new Date(value) : value;
+  return format(date, "MMM");
+}
+
+export async function getOrganiserDashboardInsights(organiserId: string) {
+  const supabase = await createClient();
+  const { data: groups } = await getChitGroups(organiserId);
+  const activeGroups = groups ?? [];
+  const groupIds = activeGroups.map((group: any) => group.id);
+  const monthBuckets = Array.from({ length: 6 }, (_, index) => {
+    const date = subMonths(startOfMonth(new Date()), 5 - index);
+    return {
+      key: monthKeyFor(date),
+      label: monthLabelFor(date),
+    };
+  });
+
+  if (groupIds.length === 0) {
+    return {
+      subtitle: `${format(new Date(), "MMMM yyyy")} · 0 active chits · Collection cycle in progress`,
+      statSummary: {
+        activeChits: 0,
+        totalMembers: 0,
+        commissionEarned: 0,
+        pendingPayments: 0,
+      },
+      monthlyCollection: monthBuckets.map((bucket) => ({
+        ...bucket,
+        percent: 0,
+        paidCount: 0,
+        totalCount: 0,
+      })),
+      paymentStatus: {
+        paidCount: 0,
+        unpaidCount: 0,
+        paidPercent: 0,
+        collectedAmount: 0,
+        outstandingAmount: 0,
+      },
+      groupCards: [],
+      quickActions: {
+        bulkReminderMessage: "",
+      },
+      rightPanel: {
+        activity: [],
+        collectionRate: 0,
+        daysToNextAuction: null,
+        membersPaid: 0,
+        totalMembers: 0,
+        remindersSent: 0,
+        commissionHistory: monthBuckets.map((bucket) => ({
+          ...bucket,
+          amount: 0,
+        })),
+        commissionThisCycle: 0,
+      },
+    };
+  }
+
+  const [{ data: members }, { data: cycles }] = await Promise.all([
+    supabase
+      .from("members")
+      .select("id, name, phone, invite_token, chit_group_id, is_active, created_at, pot_taken")
+      .in("chit_group_id", groupIds)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("payment_cycles")
+      .select("id, chit_group_id, cycle_number, due_date, status, created_at")
+      .in("chit_group_id", groupIds)
+      .order("cycle_number", { ascending: true }),
+  ]);
+
+  const cycleIds = (cycles ?? []).map((cycle: any) => cycle.id);
+  const payments = cycleIds.length
+    ? (
+        await supabase
+          .from("payments")
+          .select("id, cycle_id, member_id, amount_due, amount_paid, status, payment_date, updated_at, created_at")
+          .in("cycle_id", cycleIds)
+      ).data ?? []
+    : [];
+  const auctions = cycleIds.length
+    ? (
+        await supabase
+          .from("auctions")
+          .select("id, cycle_id, foreman_commission, created_at, winner_id")
+          .in("cycle_id", cycleIds)
+      ).data ?? []
+    : [];
+
+  const groupsById = new Map(activeGroups.map((group: any) => [group.id, group]));
+  const membersByGroup = new Map<string, any[]>();
+  const cyclesByGroup = new Map<string, any[]>();
+  const paymentsByCycle = new Map<string, any[]>();
+  const cycleById = new Map<string, any>();
+
+  for (const member of members ?? []) {
+    const collection = membersByGroup.get(member.chit_group_id) ?? [];
+    collection.push(member);
+    membersByGroup.set(member.chit_group_id, collection);
+  }
+
+  for (const cycle of cycles ?? []) {
+    const collection = cyclesByGroup.get(cycle.chit_group_id) ?? [];
+    collection.push(cycle);
+    cyclesByGroup.set(cycle.chit_group_id, collection);
+    cycleById.set(cycle.id, cycle);
+  }
+
+  for (const payment of payments) {
+    const collection = paymentsByCycle.get(payment.cycle_id) ?? [];
+    collection.push(payment);
+    paymentsByCycle.set(payment.cycle_id, collection);
+  }
+
+  const currentCycles = activeGroups
+    .map((group: any) => {
+      const groupCycles = cyclesByGroup.get(group.id) ?? [];
+      return (
+        groupCycles.find((cycle: any) => cycle.status !== "completed") ??
+        groupCycles[groupCycles.length - 1] ??
+        null
+      );
+    })
+    .filter(Boolean) as any[];
+
+  const currentCycleIds = new Set(currentCycles.map((cycle) => cycle.id));
+  const currentCyclePayments = payments.filter((payment: any) => currentCycleIds.has(payment.cycle_id));
+  const paidPayments = currentCyclePayments.filter((payment: any) => payment.status === "paid");
+  const unpaidPayments = currentCyclePayments.filter((payment: any) => payment.status !== "paid");
+  const totalMembers = (members ?? []).length;
+  const collectedAmount = paidPayments.reduce(
+    (sum: number, payment: any) => sum + Number(payment.amount_paid ?? payment.amount_due ?? 0),
+    0,
+  );
+  const outstandingAmount = unpaidPayments.reduce(
+    (sum: number, payment: any) => sum + Math.max(Number(payment.amount_due ?? 0) - Number(payment.amount_paid ?? 0), 0),
+    0,
+  );
+  const paidPercent =
+    currentCyclePayments.length > 0
+      ? Math.round((paidPayments.length / currentCyclePayments.length) * 100)
+      : 0;
+
+  const subtitle = `${format(new Date(), "MMMM yyyy")} · ${activeGroups.length} active chits · ${
+    currentCyclePayments.length > 0 ? "Collection cycle in progress" : "Ready to launch collections"
+  }`;
+
+  const monthlyCollection = monthBuckets.map((bucket) => {
+    const cycleIdsForMonth = (cycles ?? [])
+      .filter((cycle: any) => cycle.due_date && monthKeyFor(cycle.due_date) === bucket.key)
+      .map((cycle: any) => cycle.id);
+    const monthPayments = payments.filter((payment: any) => cycleIdsForMonth.includes(payment.cycle_id));
+    const monthPaidCount = monthPayments.filter((payment: any) => payment.status === "paid").length;
+    const monthTotal = monthPayments.length;
+
+    return {
+      ...bucket,
+      percent: monthTotal > 0 ? Math.round((monthPaidCount / monthTotal) * 100) : 0,
+      paidCount: monthPaidCount,
+      totalCount: monthTotal,
+    };
+  });
+
+  const commissionHistory = monthBuckets.map((bucket) => {
+    const amount = auctions
+      .filter((auction: any) => auction.created_at && monthKeyFor(auction.created_at) === bucket.key)
+      .reduce((sum: number, auction: any) => sum + Number(auction.foreman_commission ?? 0), 0);
+
+    return {
+      ...bucket,
+      amount,
+    };
+  });
+
+  const currentMonthKey = monthKeyFor(new Date());
+  const commissionThisCycle = auctions
+    .filter((auction: any) => {
+      const cycle = cycleById.get(auction.cycle_id);
+      return cycle?.due_date && monthKeyFor(cycle.due_date) === currentMonthKey;
+    })
+    .reduce((sum: number, auction: any) => sum + Number(auction.foreman_commission ?? 0), 0);
+
+  const groupCards = activeGroups.map((group: any, index: number) => {
+    const groupMembers = membersByGroup.get(group.id) ?? [];
+    const currentCycle =
+      currentCycles.find((cycle: any) => cycle.chit_group_id === group.id) ?? null;
+    const groupPayments = currentCycle ? paymentsByCycle.get(currentCycle.id) ?? [] : [];
+    const paidCount = groupPayments.filter((payment: any) => payment.status === "paid").length;
+    const totalCount = groupPayments.length || groupMembers.length || Number(group.member_count ?? 0);
+    const outstanding = groupPayments.reduce(
+      (sum: number, payment: any) =>
+        sum + Math.max(Number(payment.amount_due ?? 0) - Number(payment.amount_paid ?? 0), 0),
+      0,
+    );
+
+    return {
+      id: group.id,
+      name: group.name,
+      memberCount: Number(group.member_count ?? totalCount ?? 0),
+      currentCycle: Number(currentCycle?.cycle_number ?? 1),
+      totalCycles: Number(group.duration_months ?? 12),
+      paidCount,
+      totalMembers: totalCount,
+      nextAuction: currentCycle?.due_date
+        ? format(new Date(currentCycle.due_date), "d MMM")
+        : "Schedule pending",
+      outstanding,
+      badge: index % 2 === 0 ? "HIGH YIELD" : "STANDARD",
+      reminderMessage: groupPayments.filter((payment: any) => payment.status !== "paid").length
+        ? `Dear members of *${group.name}* 🙏\n\nThis is a friendly reminder that your contribution of *₹${Number(group.monthly_amount ?? 0).toLocaleString("en-IN")}* is pending${currentCycle?.due_date ? ` for *${format(new Date(currentCycle.due_date), "d MMMM")}*` : ""}.\n\nPending members:\n${groupPayments
+            .filter((payment: any) => payment.status !== "paid")
+            .map((payment: any) => {
+              const member = (groupMembers as any[]).find((entry) => entry.id === payment.member_id);
+              return `• ${member?.name ?? "Member"}`;
+            })
+            .join("\n")}\n\n_Managed via ChitMate_`
+        : "",
+    };
+  });
+
+  const pendingMembersForReminder = unpaidPayments
+    .map((payment: any) => {
+      const cycle = cycleById.get(payment.cycle_id);
+      const member = (members ?? []).find((entry: any) => entry.id === payment.member_id);
+      const group = cycle ? groupsById.get(cycle.chit_group_id) : null;
+      return { payment, cycle, member, group };
+    })
+    .filter((entry) => entry.member && entry.group);
+
+  const bulkReminderMessage = pendingMembersForReminder.length
+    ? `Dear members 🙏\n\nThis is a friendly reminder that your ChitMate contributions are pending.\n\n${pendingMembersForReminder
+        .map((entry) => {
+          const dueDate = entry.cycle?.due_date
+            ? format(new Date(entry.cycle.due_date), "d MMMM")
+            : "the current cycle";
+          return `• ${entry.member?.name ?? "Member"} — ${entry.group?.name ?? "Chit"} — ₹${Number(entry.payment.amount_due ?? 0).toLocaleString("en-IN")} due by ${dueDate}`;
+        })
+        .join("\n")}\n\nPlease pay at your earliest convenience.\n\n_Managed via ChitMate_`
+    : "";
+
+  const overduePendingCycles = new Map<string, number>();
+  for (const payment of payments) {
+    if (payment.status === "paid") continue;
+    const cycle = cycleById.get(payment.cycle_id);
+    if (!cycle?.due_date) continue;
+    if (new Date(cycle.due_date) > new Date()) continue;
+    overduePendingCycles.set(
+      payment.member_id,
+      (overduePendingCycles.get(payment.member_id) ?? 0) + 1,
+    );
+  }
+
+  const daysToNextAuction = currentCycles.length
+    ? Math.max(
+        Math.min(
+          ...currentCycles
+            .filter((cycle: any) => cycle.due_date)
+            .map((cycle: any) => differenceInCalendarDays(new Date(cycle.due_date), new Date())),
+        ),
+        0,
+      )
+    : null;
+
+  const activity = [
+    ...(members ?? [])
+      .slice(0, 2)
+      .map((member: any) => ({
+        type: "new_member" as const,
+        title: `${member.name} joined a chit`,
+        subtitle: groupsById.get(member.chit_group_id)?.name ?? "Member added",
+        time: member.created_at ? format(new Date(member.created_at), "d MMM, h:mm a") : "Recently",
+        sortDate: member.created_at ?? new Date().toISOString(),
+      })),
+    ...paidPayments
+      .slice(0, 2)
+      .map((payment: any) => {
+        const member = (members ?? []).find((entry: any) => entry.id === payment.member_id);
+        const cycle = cycleById.get(payment.cycle_id);
+        const group = cycle ? groupsById.get(cycle.chit_group_id) : null;
+        return {
+          type: "payment" as const,
+          title: `${member?.name ?? "Member"} paid ${formatCurrency(payment.amount_paid ?? payment.amount_due ?? 0)}`,
+          subtitle: group?.name ?? "Current cycle",
+          time: payment.payment_date
+            ? format(new Date(payment.payment_date), "d MMM, h:mm a")
+            : "Recently",
+          sortDate: payment.payment_date ?? payment.updated_at ?? payment.created_at ?? new Date().toISOString(),
+        };
+      }),
+    ...auctions.slice(0, 1).map((auction: any) => {
+      const cycle = cycleById.get(auction.cycle_id);
+      const group = cycle ? groupsById.get(cycle.chit_group_id) : null;
+      return {
+        type: "auction" as const,
+        title: `${group?.name ?? "Chit"} auction completed`,
+        subtitle: `Commission ${formatCurrency(auction.foreman_commission ?? 0)}`,
+        time: auction.created_at ? format(new Date(auction.created_at), "d MMM, h:mm a") : "Recently",
+        sortDate: auction.created_at ?? new Date().toISOString(),
+      };
+    }),
+  ]
+    .sort((a, b) => new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime())
+    .slice(0, 5);
+
+  return {
+    subtitle,
+    statSummary: {
+      activeChits: activeGroups.length,
+      totalMembers,
+      commissionEarned: commissionThisCycle,
+      pendingPayments: unpaidPayments.length,
+    },
+    monthlyCollection,
+    paymentStatus: {
+      paidCount: paidPayments.length,
+      unpaidCount: unpaidPayments.length,
+      paidPercent,
+      collectedAmount,
+      outstandingAmount,
+    },
+    groupCards,
+    quickActions: {
+      bulkReminderMessage,
+    },
+    rightPanel: {
+      activity,
+      collectionRate: paidPercent,
+      daysToNextAuction,
+      membersPaid: paidPayments.length,
+      totalMembers: currentCyclePayments.length || totalMembers,
+      remindersSent: 0,
+      commissionHistory,
+      commissionThisCycle,
+      defaulters: Array.from(overduePendingCycles.values()).filter((count) => count >= 2).length,
+    },
   };
 }
 

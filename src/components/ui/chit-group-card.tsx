@@ -11,8 +11,10 @@ type ChitGroupCardProps = {
   paidCount: number;
   totalMembers: number;
   nextAuction: string;
+  outstandingAmount?: string;
   badge: "HIGH YIELD" | "STANDARD";
   href: string;
+  reminderHref?: string;
 };
 
 export function ChitGroupCard({
@@ -23,8 +25,10 @@ export function ChitGroupCard({
   paidCount,
   totalMembers,
   nextAuction,
+  outstandingAmount,
   badge,
   href,
+  reminderHref,
 }: ChitGroupCardProps) {
   const progress = totalMembers > 0 ? Math.min((paidCount / totalMembers) * 100, 100) : 0;
 
@@ -56,8 +60,13 @@ export function ChitGroupCard({
               />
             </div>
             <div className="mt-3 flex items-center justify-between text-sm text-[var(--color-text-body)]">
-              <span>{paidCount} paid</span>
-              <span>{totalMembers} total members</span>
+              <span>
+                {paidCount} / {totalMembers} paid
+              </span>
+              <span>
+                Next auction: {nextAuction}
+                {outstandingAmount ? ` · ${outstandingAmount} outstanding` : ""}
+              </span>
             </div>
           </div>
         </div>
@@ -71,9 +80,15 @@ export function ChitGroupCard({
             <Link href={href as Route} className="ghost-button">
               View
             </Link>
-            <button type="button" className="primary-button">
-              Remind All
-            </button>
+            {reminderHref ? (
+              <a href={reminderHref} target="_blank" rel="noreferrer" className="primary-button">
+                Remind All
+              </a>
+            ) : (
+              <button type="button" className="primary-button">
+                Remind All
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -1,15 +1,19 @@
 export const revalidate = 30;
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 
+import { DashboardPaymentStatusDonut } from "@/components/dashboard/dashboard-payment-status-donut";
+import { DashboardQuickActions } from "@/components/dashboard/dashboard-quick-actions";
+import { ActivityFeedItem } from "@/components/ui/activity-feed-item";
 import { ChitGroupCard } from "@/components/ui/chit-group-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/stat-card";
-import { authService } from "@/modules/auth/auth.service";
 import { formatCurrency } from "@/lib/utils";
-import { getOrganiserDashboardData } from "@/utils/supabase/db";
+import { authService } from "@/modules/auth/auth.service";
+import { getOrganiserDashboardInsights } from "@/utils/supabase/db";
 
-function icon(path: React.ReactNode) {
+function icon(path: ReactNode) {
   return (
     <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-surface-low)] text-[var(--color-primary)]">
       {path}
@@ -17,14 +21,20 @@ function icon(path: React.ReactNode) {
   );
 }
 
+function barTone(percent: number) {
+  if (percent >= 90) return "#1b4332";
+  if (percent >= 70) return "#d4a843";
+  return "#dc2626";
+}
+
 export default async function DashboardPage() {
   const session = await authService.requireAuthenticatedSession("/dashboard");
-  const {
-    groups: activeGroups,
-    membersCount: activeMembers,
-    commissionEarned,
-    pendingPayments,
-  } = await getOrganiserDashboardData(session.user.id);
+  const dashboard = await getOrganiserDashboardInsights(session.user.id);
+
+  const commissionPeak = Math.max(
+    ...dashboard.rightPanel.commissionHistory.map((entry) => entry.amount),
+    1,
+  );
 
   return (
     <>
@@ -34,15 +44,14 @@ export default async function DashboardPage() {
             <h1 className="text-[1.875rem]">
               Welcome back, {session.user.name?.split(" ")[0] ?? "Organiser"}
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--color-text-body)]">
-              Your portfolio is ready. Create your first chit group to get started.
-            </p>
+            <p className="mt-3 text-sm text-[var(--color-text-muted)]">{dashboard.subtitle}</p>
           </section>
 
           <section className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
             <StatCard
-              label="Total Active Chits"
-              value={activeGroups.length}
+              label="Active Chits"
+              value={dashboard.statSummary.activeChits}
+              hint="running this month"
               icon={icon(
                 <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7">
                   <rect x="3.5" y="4" width="13" height="4" rx="1.2" />
@@ -51,8 +60,9 @@ export default async function DashboardPage() {
               )}
             />
             <StatCard
-              label="Members This Month"
-              value={activeMembers}
+              label="Total Members"
+              value={dashboard.statSummary.totalMembers}
+              hint="across all chits"
               icon={icon(
                 <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7">
                   <path d="M6.5 8.1a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2Z" />
@@ -64,7 +74,8 @@ export default async function DashboardPage() {
             />
             <StatCard
               label="Commission Earned"
-              value={formatCurrency(commissionEarned)}
+              value={formatCurrency(dashboard.statSummary.commissionEarned)}
+              hint="this cycle"
               icon={icon(
                 <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7">
                   <path d="M10 3.5v13" />
@@ -74,8 +85,9 @@ export default async function DashboardPage() {
             />
             <StatCard
               label="Payments Pending"
-              value={pendingPayments}
-              highlight={pendingPayments > 0}
+              value={dashboard.statSummary.pendingPayments}
+              hint="needs follow-up"
+              highlight={dashboard.statSummary.pendingPayments > 0}
               icon={icon(
                 <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7">
                   <path d="M10 4.2 16.2 15H3.8L10 4.2Z" />
@@ -86,12 +98,51 @@ export default async function DashboardPage() {
             />
           </section>
 
+          <section className="grid gap-6 xl:grid-cols-2">
+            <article className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2>Monthly Collection</h2>
+                  <p className="mt-1 text-sm text-[var(--color-text-body)]">
+                    Last six months of collection-rate performance.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-8 grid grid-cols-6 items-end gap-3">
+                {dashboard.monthlyCollection.map((month) => (
+                  <div key={month.key} className="flex flex-col items-center gap-3">
+                    <div className="flex h-44 w-full items-end justify-center rounded-[var(--radius-card)] bg-[var(--color-surface-low)] px-2 py-3">
+                      <div
+                        className="w-full rounded-t-[6px] transition-all"
+                        style={{
+                          height: `${Math.max(month.percent, month.totalCount > 0 ? 12 : 6)}%`,
+                          background: barTone(month.percent),
+                        }}
+                      />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-[var(--color-text-primary)]">{month.label}</p>
+                      <p className="mt-1 text-[0.75rem] text-[var(--color-text-muted)]">{month.percent}%</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <DashboardPaymentStatusDonut
+              paidPercent={dashboard.paymentStatus.paidPercent}
+              collectedAmount={dashboard.paymentStatus.collectedAmount}
+              outstandingAmount={dashboard.paymentStatus.outstandingAmount}
+            />
+          </section>
+
           <section id="chit-groups" className="space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2>Active Chit Groups</h2>
                 <p className="mt-1 text-sm text-[var(--color-text-body)]">
-                  Create your first chit group to get started.
+                  Keep each collection cycle moving with progress at a glance.
                 </p>
               </div>
               <Link href="/dashboard/chit-groups" className="ghost-button">
@@ -99,7 +150,7 @@ export default async function DashboardPage() {
               </Link>
             </div>
 
-            {activeGroups.length === 0 ? (
+            {dashboard.groupCards.length === 0 ? (
               <EmptyState
                 amberGlow
                 eyebrow="A Quiet Start"
@@ -110,30 +161,130 @@ export default async function DashboardPage() {
               />
             ) : (
               <div className="space-y-4">
-                {activeGroups.map((group: any, index: number) => (
+                {dashboard.groupCards.map((group) => (
                   <ChitGroupCard
                     key={group.id}
                     name={group.name}
-                    memberCount={Number(group.member_count ?? 0)}
-                    currentCycle={1}
-                    totalCycles={Number(group.duration_months ?? 12)}
-                    paidCount={0}
-                    totalMembers={Number(group.member_count ?? 0)}
-                    nextAuction="Awaiting first collection cycle"
-                    badge={index % 2 === 0 ? "HIGH YIELD" : "STANDARD"}
+                    memberCount={group.memberCount}
+                    currentCycle={group.currentCycle}
+                    totalCycles={group.totalCycles}
+                    paidCount={group.paidCount}
+                    totalMembers={group.totalMembers}
+                    nextAuction={group.nextAuction}
+                    outstandingAmount={formatCurrency(group.outstanding)}
+                    badge={group.badge as "HIGH YIELD" | "STANDARD"}
                     href={`/dashboard/chit-groups/${group.id}`}
+                    reminderHref={
+                      group.reminderMessage
+                        ? `https://wa.me/?text=${encodeURIComponent(group.reminderMessage)}`
+                        : undefined
+                    }
                   />
                 ))}
               </div>
             )}
           </section>
+
+          <DashboardQuickActions bulkReminderMessage={dashboard.quickActions.bulkReminderMessage} />
         </div>
 
         <aside className="space-y-6 xl:sticky xl:top-4 xl:self-start">
           <section className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
-            <h2>Recent Activity</h2>
-            <p className="mt-4 text-sm leading-7 text-[var(--color-text-body)]">
-              No activity yet. Actions you take will appear here.
+            <div className="flex items-center justify-between gap-4">
+              <h2>Recent Activity</h2>
+              <span className="editorial-label !text-[var(--color-text-muted)]">
+                {dashboard.rightPanel.activity.length} updates
+              </span>
+            </div>
+
+            {dashboard.rightPanel.activity.length === 0 ? (
+              <p className="mt-4 text-sm leading-7 text-[var(--color-text-body)]">
+                No activity yet. Actions you take will appear here.
+              </p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {dashboard.rightPanel.activity.map((item, index) => (
+                  <ActivityFeedItem
+                    key={`${item.title}-${index}`}
+                    type={item.type}
+                    title={item.title}
+                    subtitle={item.subtitle}
+                    time={item.time}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section
+            className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]"
+            style={{ boxShadow: "inset 4px 0 0 #d4a843, 0 4px 24px rgba(27,28,26,0.06)" }}
+          >
+            <h2>This Month at a Glance</h2>
+            <div className="mt-5 space-y-4 text-sm text-[var(--color-text-body)]">
+              <div className="flex items-center justify-between gap-4">
+                <span>Collection rate</span>
+                <span className="font-medium text-[var(--color-text-primary)]">
+                  {dashboard.rightPanel.collectionRate}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span>Days to next auction</span>
+                <span className="font-medium text-[var(--color-text-primary)]">
+                  {dashboard.rightPanel.daysToNextAuction ?? "—"} days
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span>Members paid</span>
+                <span className="font-medium text-[var(--color-text-primary)]">
+                  {dashboard.rightPanel.membersPaid} / {dashboard.rightPanel.totalMembers}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span>Reminders sent</span>
+                <span className="font-medium text-[var(--color-text-primary)]">
+                  {dashboard.rightPanel.remindersSent}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
+            <h2>Commission Tracker</h2>
+            <p className="mt-1 text-sm text-[var(--color-text-body)]">
+              Six months of foreman earnings from completed auctions.
+            </p>
+
+            <div className="mt-6 grid grid-cols-6 items-end gap-3">
+              {dashboard.rightPanel.commissionHistory.map((month, index) => {
+                const height = `${Math.max((month.amount / commissionPeak) * 100, month.amount > 0 ? 18 : 8)}%`;
+                return (
+                  <div key={month.key} className="flex flex-col items-center gap-3">
+                    <div className="flex h-36 w-full items-end justify-center rounded-[var(--radius-card)] bg-[var(--color-surface-low)] px-2 py-3">
+                      <div
+                        className="w-full rounded-t-[6px]"
+                        style={{
+                          height,
+                          background: index % 2 === 0 ? "#1b4332" : "#d4a843",
+                        }}
+                      />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-[var(--color-text-primary)]">{month.label}</p>
+                      <p className="mt-1 text-[0.75rem] text-[var(--color-text-muted)]">
+                        {month.amount > 0 ? formatCurrency(month.amount) : "—"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="mt-6 text-sm text-[var(--color-text-body)]">
+              <span className="font-medium text-[var(--color-text-primary)]">
+                {formatCurrency(dashboard.rightPanel.commissionThisCycle)}
+              </span>{" "}
+              earned this cycle
             </p>
           </section>
 
@@ -142,7 +293,10 @@ export default async function DashboardPage() {
             <p className="mt-3 text-sm leading-7 text-white/78">
               Set up WhatsApp reminders for all pending members.
             </p>
-            <button type="button" className="mt-6 inline-flex rounded-[var(--radius-button)] bg-white px-5 py-3 text-sm font-semibold text-[var(--color-primary-container)]">
+            <button
+              type="button"
+              className="mt-6 inline-flex rounded-[var(--radius-button)] bg-white px-5 py-3 text-sm font-semibold text-[var(--color-primary-container)]"
+            >
               Enable Now
             </button>
           </section>
