@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import { MemberActionsMenu } from "@/components/dashboard/member-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -30,6 +31,10 @@ type ChitGroupMembersPanelProps = {
   monthLabel: string;
   memberTargetCount: number;
   monthlyAmount: number;
+  memberCount: number;
+  memberLimit: number;
+  limitReached: boolean;
+  isAuctionType: boolean;
   initialMembers: MemberEntry[];
   nextAuctionDate: string;
   daysUntilDue: number | null;
@@ -52,12 +57,17 @@ export function ChitGroupMembersPanel({
   monthLabel,
   memberTargetCount,
   monthlyAmount,
+  memberCount,
+  memberLimit,
+  limitReached,
+  isAuctionType,
   initialMembers,
   nextAuctionDate,
   daysUntilDue,
   defaulterCount,
   addMemberForm,
 }: ChitGroupMembersPanelProps) {
+  const router = useRouter();
   const [members, setMembers] = useState(initialMembers);
   const [toast, setToast] = useState<string | null>(null);
   const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
@@ -129,17 +139,45 @@ export function ChitGroupMembersPanel({
 
   const copyAllLinks = async () => {
     const message = [
-      `ChitMate member portal links for ${chitName}:`,
+      `ChitMate — ${chitName}`,
+      "",
+      "Member Portal Links:",
       "",
       ...members.map(
-        (entry, index) =>
-          `${index + 1}. ${entry.member.name}: ${window.location.origin}/member/${entry.member.invite_token}`,
+        (entry) => `${entry.member.name}: ${window.location.origin}/member/${entry.member.invite_token}`,
       ),
-    ].join("\n");
+      "",
+      "Click your link to view your payment history and chit details.",
+    ].join("\n\n");
+
+    if (navigator.share) {
+      await navigator.share({
+        title: "ChitMate Member Links",
+        text: message,
+      });
+      return;
+    }
 
     await navigator.clipboard.writeText(message);
-    setToast("All member links copied ✓");
+    setToast("Copied! ✓");
     window.setTimeout(() => setToast(null), 2400);
+  };
+
+  const handleBulkReminder = () => {
+    const unpaidMembers = members.filter((entry) => entry.currentPayment?.status === "unpaid");
+
+    if (unpaidMembers.length === 0) {
+      window.alert("All members have paid this cycle!");
+      return;
+    }
+
+    const memberList = unpaidMembers.map((entry) => `• ${entry.member.name}`).join("\n");
+    const dueLine = daysUntilDue !== null && nextAuctionDate !== "Schedule pending"
+      ? ` by *${nextAuctionDate}*`
+      : "";
+    const message = `Dear members of *${chitName}* 🙏\n\nThis is a friendly reminder that your contribution of *₹${Number(monthlyAmount).toLocaleString('en-IN')}* is due${dueLine}.\n\nPending payments:\n${memberList}\n\nPlease pay at your earliest convenience.\n\n_Managed via ChitMate_`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
 
   const confirmPayment = () => {
@@ -193,6 +231,7 @@ export function ChitGroupMembersPanel({
       }
 
       setToast(`Payment marked for ${target.member.name} ✓`);
+      router.refresh();
       window.setTimeout(() => setToast(null), 2400);
     });
   };
@@ -215,10 +254,34 @@ export function ChitGroupMembersPanel({
                   Track the current cycle and keep every member up to date.
                 </p>
               </div>
-              <a href="#add-member-form" className="primary-button">
-                Add Member
-              </a>
+              <div className="flex items-center gap-3">
+                <span className="ledger-chip bg-[var(--color-surface-low)] text-[var(--color-text-body)]">
+                  {memberCount} / {memberLimit} members
+                </span>
+                <a
+                  href="#add-member-form"
+                  className={`primary-button ${limitReached ? "pointer-events-none opacity-50" : ""}`}
+                >
+                  Add Member
+                </a>
+              </div>
             </div>
+
+            {!isAuctionType ? (
+              <div id="rotation-order" className="mb-5 rounded-[var(--radius-card)] bg-[var(--color-surface-low)] p-4">
+                <p className="editorial-label !text-[var(--color-text-muted)]">Rotation Order</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {members.map((entry, index) => (
+                    <span
+                      key={entry.member.id}
+                      className="ledger-chip bg-white text-[var(--color-text-primary)]"
+                    >
+                      {index + 1}. {entry.member.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <div className="hidden items-center gap-3 px-4 pb-2 lg:flex">
               <div className="min-w-0 flex-[1_1_160px]">
@@ -244,7 +307,7 @@ export function ChitGroupMembersPanel({
                 subtitle="Once members are added, this table will show collection status, reminders, and portal links."
               />
             ) : (
-              <div className="space-y-3">
+              <div id="payments" className="space-y-3">
                 {members.map((entry, index) => (
                   <div
                     key={entry.member.id}
@@ -263,6 +326,7 @@ export function ChitGroupMembersPanel({
                       actions={
                         <MemberActionsMenu
                           groupId={groupId}
+                          memberId={entry.member.id}
                           token={entry.member.invite_token}
                           chitName={chitName}
                           canMarkPaid={Boolean(
@@ -316,7 +380,11 @@ export function ChitGroupMembersPanel({
                 </p>
               </div>
             </div>
-            <button type="button" className="primary-button mt-6 w-full justify-center">
+            <button
+              type="button"
+              className="primary-button mt-6 w-full justify-center"
+              onClick={handleBulkReminder}
+            >
               Send Bulk Reminders
             </button>
           </section>

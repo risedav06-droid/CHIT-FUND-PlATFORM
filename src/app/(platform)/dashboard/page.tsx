@@ -151,9 +151,18 @@ export default async function DashboardPage() {
 
       <Link
         href="/dashboard/chit-groups/new"
-        className="fixed bottom-24 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#d4a843,#eec058)] text-3xl text-[var(--color-text-primary)] shadow-[var(--shadow-float)] lg:bottom-8 lg:right-8"
+        title="Create Chit Group"
+        className="fixed bottom-24 right-5 z-30 flex flex-col items-center gap-1 rounded-full lg:bottom-8 lg:right-8"
       >
-        +
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#d4a843,#eec058)] text-3xl text-[var(--color-text-primary)] shadow-[var(--shadow-float)]">
+          +
+        </span>
+        <span className="text-xs font-medium text-[var(--color-text-primary)] lg:sr-only">
+          Create Chit Group
+        </span>
+        <span className="hidden rounded-[var(--radius-button)] bg-white/90 px-3 py-1 text-xs font-medium text-[var(--color-text-primary)] shadow-[var(--shadow-card)] lg:block">
+          Create Chit Group
+        </span>
       </Link>
     </>
   );

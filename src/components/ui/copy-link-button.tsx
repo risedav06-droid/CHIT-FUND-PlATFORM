@@ -2,9 +2,10 @@
 
 type CopyLinkButtonProps = {
   value: string;
+  label?: string;
 };
 
-export function CopyLinkButton({ value }: CopyLinkButtonProps) {
+export function CopyLinkButton({ value, label = "Copy Link" }: CopyLinkButtonProps) {
   return (
     <button
       type="button"
@@ -13,7 +14,7 @@ export function CopyLinkButton({ value }: CopyLinkButtonProps) {
         await navigator.clipboard.writeText(value);
       }}
     >
-      Copy Link
+      {label}
     </button>
   );
 }

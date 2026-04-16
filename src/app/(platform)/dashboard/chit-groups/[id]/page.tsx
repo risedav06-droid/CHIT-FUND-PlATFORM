@@ -4,9 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { differenceInCalendarDays, format } from "date-fns";
 
-import { addMemberToDashboardChitGroupAction } from "@/app/(platform)/dashboard/chit-groups/actions";
+import { AddMemberInlineForm } from "@/components/dashboard/add-member-inline-form";
 import { ChitGroupMembersPanel } from "@/components/dashboard/chit-group-members-panel";
-import { Input } from "@/components/ui/input";
 import { StatusChip } from "@/components/ui/status-chip";
 import { authService } from "@/modules/auth/auth.service";
 import { formatCurrency } from "@/lib/utils";
@@ -43,6 +42,13 @@ export default async function DashboardChitGroupDetailPage({
     : "CURRENT CYCLE";
   const monthlyAmount = Number(group.monthly_amount ?? 0);
   const potValue = monthlyAmount * Number(group.member_count ?? 0);
+  const endDate = new Date(group.start_date);
+  endDate.setMonth(endDate.getMonth() + Number(group.duration_months ?? 0));
+  const endDateLabel = endDate.toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
+  const limitReached = members.length >= Number(group.member_count ?? 0);
   const currentMemberRows = members.map((member) => {
     const currentPayment =
       member.payments.find(
@@ -84,12 +90,13 @@ export default async function DashboardChitGroupDetailPage({
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-5">
           {[
             ["Duration", `${group.duration_months} Months`],
             ["Monthly Deposit", formatCurrency(monthlyAmount)],
             ["Pot Value", formatCurrency(potValue)],
             ["Commission", `${group.commission_pct}%`],
+            ["End Date", endDateLabel],
           ].map(([label, value], index) => (
             <div
               key={label}
@@ -106,10 +113,16 @@ export default async function DashboardChitGroupDetailPage({
           <span className="border-b-2 border-[var(--color-primary-container)] pb-3 font-display text-[var(--color-text-primary)]">
             Members
           </span>
-          <span className="pb-3 text-[var(--color-text-muted)]">Payments</span>
-          <Link href={`/dashboard/chit-groups/${group.id}/auction`} className="pb-3 text-[var(--color-text-muted)]">
-            Auctions
-          </Link>
+          <a href="#payments" className="pb-3 text-[var(--color-text-muted)]">Payments</a>
+          {group.chit_type === "auction" ? (
+            <Link href={`/dashboard/chit-groups/${group.id}/auction`} className="pb-3 text-[var(--color-text-muted)]">
+              Auctions
+            </Link>
+          ) : (
+            <a href="#rotation-order" className="pb-3 text-[var(--color-text-muted)]">
+              Rotation Order
+            </a>
+          )}
           <Link
             href={`/dashboard/chit-groups/${group.id}/statement/${members[0]?.id ?? ""}`}
             className="pb-3 text-[var(--color-text-muted)]"
@@ -125,33 +138,23 @@ export default async function DashboardChitGroupDetailPage({
         monthLabel={monthLabel}
         memberTargetCount={Number(group.member_count ?? 0)}
         monthlyAmount={monthlyAmount}
+        isAuctionType={group.chit_type === "auction"}
+        memberCount={members.length}
+        memberLimit={Number(group.member_count ?? 0)}
+        limitReached={limitReached}
         nextAuctionDate={nextAuctionDate}
         daysUntilDue={daysUntilDue}
         defaulterCount={defaulterCount}
         addMemberForm={
-          <form
-            id="add-member-form"
-            action={addMemberToDashboardChitGroupAction}
-            className="rounded-[var(--radius-card)] bg-[var(--color-surface-low)] p-6 shadow-[var(--shadow-card)]"
-          >
-            <input type="hidden" name="chitGroupId" value={group.id} />
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="editorial-label !text-[var(--color-text-muted)]">Add Member</p>
-                <p className="mt-1 text-sm text-[var(--color-text-body)]">
-                  Create the member record and generate their portal invite link.
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              <Input name="name" placeholder="Ravi Kumar" required />
-              <Input name="phone" placeholder="9876543210" required />
-              <Input name="whatsappPhone" placeholder="WhatsApp phone (optional)" />
-            </div>
-            <button type="submit" className="primary-button mt-5">
-              Add Member
-            </button>
-          </form>
+          <AddMemberInlineForm
+            chitGroupId={group.id}
+            disabled={limitReached}
+            disabledMessage={
+              limitReached
+                ? `This chit is full. You set a limit of ${Number(group.member_count ?? 0)} members when creating this chit.`
+                : undefined
+            }
+          />
         }
         initialMembers={currentMemberRows.map(({ member, currentPayment }) => ({
           member: {

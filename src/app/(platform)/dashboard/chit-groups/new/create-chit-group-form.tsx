@@ -25,9 +25,11 @@ export function CreateChitGroupForm() {
   const [name, setName] = useState("");
   const [memberCount, setMemberCount] = useState("20");
   const [monthlyAmount, setMonthlyAmount] = useState("5000");
-  const [durationMonths, setDurationMonths] = useState("12");
+  const [durationValue, setDurationValue] = useState("12");
+  const [durationUnit, setDurationUnit] = useState<"months" | "years">("months");
   const [commissionPct, setCommissionPct] = useState("5");
   const [chitType, setChitType] = useState<"auction" | "fixed_rotation">("auction");
+  const [blurErrors, setBlurErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (state.success && state.redirectTo) {
@@ -38,7 +40,8 @@ export function CreateChitGroupForm() {
   const summary = useMemo(() => {
     const members = Number(memberCount) || 0;
     const monthly = Number(monthlyAmount) || 0;
-    const months = Number(durationMonths) || 0;
+    const durationNumber = Number(durationValue) || 0;
+    const months = durationUnit === "years" ? durationNumber * 12 : durationNumber;
     const commission = Number(commissionPct) || 0;
     const monthlyPot = members * monthly;
 
@@ -47,7 +50,30 @@ export function CreateChitGroupForm() {
       monthlyCommission: (monthlyPot * commission) / 100,
       totalValue: monthlyPot * months,
     };
-  }, [commissionPct, durationMonths, memberCount, monthlyAmount]);
+  }, [commissionPct, durationUnit, durationValue, memberCount, monthlyAmount]);
+
+  function setFieldError(field: string, value: string) {
+    setBlurErrors((current) => ({ ...current, [field]: value }));
+  }
+
+  function validateField(field: string) {
+    if (field === "name") {
+      setFieldError("name", !name.trim() || name.trim().length < 3 ? "Name must be at least 3 characters." : "");
+    }
+    if (field === "memberCount") {
+      const value = Number(memberCount);
+      setFieldError("memberCount", !Number.isFinite(value) || value < 2 || value > 100 ? "Member count must be between 2 and 100." : "");
+    }
+    if (field === "monthlyAmount") {
+      const value = Number(monthlyAmount);
+      setFieldError("monthlyAmount", !Number.isFinite(value) || value <= 0 ? "Monthly amount must be greater than 0." : "");
+    }
+    if (field === "durationMonths") {
+      const rawValue = Number(durationValue);
+      const months = durationUnit === "years" ? rawValue * 12 : rawValue;
+      setFieldError("durationMonths", !Number.isFinite(months) || months < 1 || months > 60 ? "Duration must be between 1 and 60 months." : "");
+    }
+  }
 
   const steps: Array<{ step: string; label: string; active: boolean }> = [
     { step: "Step 1", label: "Basic Info", active: true },
@@ -90,16 +116,17 @@ export function CreateChitGroupForm() {
                 name="name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Golden Years Circle"
+                onBlur={() => validateField("name")}
+                placeholder="e.g. Golden Years Fund"
                 aria-invalid={Boolean(state.fieldErrors?.name)}
                 required
               />
-              <FieldError message={state.fieldErrors?.name} />
+              <FieldError message={blurErrors.name || state.fieldErrors?.name} />
             </label>
 
             <label className="space-y-2">
               <span className="editorial-label !text-[var(--color-text-muted)]">Description</span>
-              <Textarea name="description" placeholder="Optional note for this fund" />
+              <Textarea name="description" placeholder="Optional — describe this chit group" />
             </label>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -112,10 +139,12 @@ export function CreateChitGroupForm() {
                   max="100"
                   value={memberCount}
                   onChange={(event) => setMemberCount(event.target.value)}
+                  onBlur={() => validateField("memberCount")}
+                  placeholder="e.g. 20"
                   required
                 />
                 <p className="text-sm text-[var(--color-text-muted)]">Including yourself as the foreman</p>
-                <FieldError message={state.fieldErrors?.memberCount} />
+                <FieldError message={blurErrors.memberCount || state.fieldErrors?.memberCount} />
               </label>
               <label className="space-y-2">
                 <span className="editorial-label !text-[var(--color-text-muted)]">Monthly Contribution Amount ₹</span>
@@ -126,22 +155,45 @@ export function CreateChitGroupForm() {
                   step="0.01"
                   value={monthlyAmount}
                   onChange={(event) => setMonthlyAmount(event.target.value)}
+                  onBlur={() => validateField("monthlyAmount")}
+                  placeholder="e.g. 5000"
                   required
                 />
-                <FieldError message={state.fieldErrors?.monthlyAmount} />
+                <FieldError message={blurErrors.monthlyAmount || state.fieldErrors?.monthlyAmount} />
               </label>
               <label className="space-y-2">
-                <span className="editorial-label !text-[var(--color-text-muted)]">Duration in Months</span>
-                <Input
+                <span className="editorial-label !text-[var(--color-text-muted)]">Duration</span>
+                <input
+                  type="hidden"
                   name="durationMonths"
-                  type="number"
-                  min="1"
-                  max="60"
-                  value={durationMonths}
-                  onChange={(event) => setDurationMonths(event.target.value)}
-                  required
+                  value={durationUnit === "years" ? String((Number(durationValue) || 0) * 12) : durationValue}
                 />
-                <FieldError message={state.fieldErrors?.durationMonths} />
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
+                  <Input
+                    type="number"
+                    min="1"
+                    max={durationUnit === "years" ? "5" : "60"}
+                    value={durationValue}
+                    onChange={(event) => setDurationValue(event.target.value)}
+                    onBlur={() => validateField("durationMonths")}
+                    placeholder="e.g. 12"
+                    required
+                  />
+                  <select
+                    value={durationUnit}
+                    onChange={(event) => setDurationUnit(event.target.value as "months" | "years")}
+                    className="recessed-input h-11 w-full"
+                  >
+                    <option value="months">Months</option>
+                    <option value="years">Years</option>
+                  </select>
+                </div>
+                {durationUnit === "years" ? (
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    = {(Number(durationValue) || 0) * 12} months
+                  </p>
+                ) : null}
+                <FieldError message={blurErrors.durationMonths || state.fieldErrors?.durationMonths} />
               </label>
               <label className="space-y-2">
                 <span className="editorial-label !text-[var(--color-text-muted)]">Foreman Commission %</span>
@@ -152,6 +204,7 @@ export function CreateChitGroupForm() {
                   step="0.01"
                   value={commissionPct}
                   onChange={(event) => setCommissionPct(event.target.value)}
+                  placeholder="5"
                   required
                 />
                 <p className="text-sm text-[var(--color-text-muted)]">Industry standard is 5% of the pot value</p>
@@ -218,7 +271,23 @@ export function CreateChitGroupForm() {
                 disabled={isPending}
                 className="primary-button w-full justify-center sm:w-auto sm:min-w-[240px]"
               >
-                {isPending ? "Creating..." : "Create Chit Group"}
+                {isPending ? (
+                  <>
+                    <span
+                      className="inline-block animate-spin"
+                      style={{
+                        display: "inline-block",
+                        width: 16,
+                        height: 16,
+                        border: "2px solid rgba(255,255,255,0.3)",
+                        borderTop: "2px solid white",
+                        borderRadius: "50%",
+                        marginRight: 8,
+                      }}
+                    />
+                    Creating...
+                  </>
+                ) : "Create Chit Group"}
               </button>
               <Link href="/dashboard" className="ghost-button w-full justify-center sm:w-auto">
                 Cancel
@@ -254,7 +323,7 @@ export function CreateChitGroupForm() {
               <div>
                 <p className="editorial-label !text-[var(--color-text-muted)]">Duration</p>
                 <p className="mt-2 font-display text-[1.35rem] text-[var(--color-text-primary)]">
-                  {durationMonths || "0"} months
+                  {summary.totalValue === 0 ? "0 months" : `${durationUnit === "years" ? (Number(durationValue) || 0) * 12 : Number(durationValue) || 0} months`}
                 </p>
               </div>
             </div>

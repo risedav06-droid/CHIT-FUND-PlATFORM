@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 type MemberActionsMenuProps = {
   groupId: string;
+  memberId: string;
   token: string;
   chitName: string;
   canMarkPaid: boolean;
@@ -13,6 +14,7 @@ type MemberActionsMenuProps = {
 
 export function MemberActionsMenu({
   groupId,
+  memberId,
   token,
   chitName,
   canMarkPaid,
@@ -109,7 +111,7 @@ export function MemberActionsMenu({
           <div className="my-2 h-px bg-[rgba(193,200,194,0.18)]" />
 
           <Link
-            href={`/dashboard/chit-groups/${groupId}`}
+            href={`/dashboard/chit-groups/${groupId}/members/${memberId}`}
             className="flex h-9 items-center px-4 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-low)]"
             role="menuitem"
             onClick={() => setOpen(false)}

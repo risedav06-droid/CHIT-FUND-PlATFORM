@@ -1,6 +1,7 @@
 'use server';
 import { revalidatePath } from "next/cache";
 
+import { isValidIndianPhone, normalizePhone } from "@/lib/phone";
 import { createClient } from "@/utils/supabase/server";
 import { addMemberToGroup, getDashboardChitGroupDetail, markPaymentPaid } from "@/utils/supabase/db";
 
@@ -14,6 +15,11 @@ export type CreateChitGroupFormState = {
   >>;
 };
 
+export type AddMemberFormState = {
+  error?: string;
+  success?: boolean;
+};
+
 function validateCreateChitGroup(formData: FormData): CreateChitGroupFormState {
   const name = String(formData.get("name") || "").trim();
   const memberCount = parseInt(String(formData.get("memberCount") || "0"), 10);
@@ -24,7 +30,7 @@ function validateCreateChitGroup(formData: FormData): CreateChitGroupFormState {
   const startDate = String(formData.get("startDate") || "");
   const fieldErrors: CreateChitGroupFormState["fieldErrors"] = {};
 
-  if (!name) fieldErrors.name = "Enter a chit name.";
+  if (!name || name.length < 3) fieldErrors.name = "Name must be at least 3 characters.";
   if (!Number.isFinite(memberCount) || memberCount < 2 || memberCount > 100) {
     fieldErrors.memberCount = "Member count must be between 2 and 100.";
   }
@@ -131,12 +137,63 @@ export async function createDashboardChitGroupAction(
   };
 }
 
-export async function addMemberToDashboardChitGroupAction(formData: FormData) {
+export async function addMemberToDashboardChitGroupAction(
+  _previousState: AddMemberFormState,
+  formData: FormData,
+): Promise<AddMemberFormState> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   const chitGroupId = String(formData.get("chitGroupId") || "");
+
+  if (!user) {
+    return { error: "Please sign in again." };
+  }
+
+  const detail = await getDashboardChitGroupDetail(chitGroupId, user.id);
+
+  if (!detail.data?.group) {
+    return { error: "This chit group could not be found." };
+  }
+
+  const currentMembers = (detail.data.members as any[]) ?? [];
+  const memberLimit = Number((detail.data.group as any).member_count ?? 0);
+
+  if (currentMembers.length >= memberLimit) {
+    return {
+      error: `This chit is full. You set a limit of ${memberLimit} members when creating this chit.`,
+    };
+  }
+
+  try {
+    await addMemberToGroup({
+      chitGroupId,
+      name: String(formData.get("name") || ""),
+      phone: String(formData.get("phone") || ""),
+      whatsappPhone: String(formData.get("whatsappPhone") || ""),
+    });
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Could not add member.",
+    };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/chit-groups/${chitGroupId}`);
+  return { success: true };
+}
+
+export async function updateDashboardMemberAction(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const chitGroupId = String(formData.get("chitGroupId") || "");
+  const memberId = String(formData.get("memberId") || "");
+  const name = String(formData.get("name") || "").trim();
+  const phone = String(formData.get("phone") || "").trim();
+  const whatsappPhone = String(formData.get("whatsappPhone") || "").trim();
 
   if (!user) {
     throw new Error("Please sign in again.");
@@ -148,15 +205,34 @@ export async function addMemberToDashboardChitGroupAction(formData: FormData) {
     throw new Error("This chit group could not be found.");
   }
 
-  await addMemberToGroup({
-    chitGroupId,
-    name: String(formData.get("name") || ""),
-    phone: String(formData.get("phone") || ""),
-    whatsappPhone: String(formData.get("whatsappPhone") || ""),
-  });
+  if (!name || name.length < 3) {
+    throw new Error("Enter a member name with at least 3 characters.");
+  }
 
-  revalidatePath("/dashboard");
+  if (!isValidIndianPhone(phone)) {
+    throw new Error("Enter a valid Indian phone number.");
+  }
+
+  if (whatsappPhone && !isValidIndianPhone(whatsappPhone)) {
+    throw new Error("Enter a valid WhatsApp number or leave it blank.");
+  }
+
+  const { error } = await supabase
+    .from("members")
+    .update({
+      name,
+      phone: normalizePhone(phone),
+      whatsapp_phone: whatsappPhone ? normalizePhone(whatsappPhone) : normalizePhone(phone),
+    })
+    .eq("id", memberId)
+    .eq("chit_group_id", chitGroupId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
   revalidatePath(`/dashboard/chit-groups/${chitGroupId}`);
+  revalidatePath(`/dashboard/chit-groups/${chitGroupId}/members/${memberId}`);
 }
 
 export async function markMemberPaidAction(formData: FormData) {

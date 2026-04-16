@@ -1,5 +1,7 @@
 import { addMonths } from "date-fns";
 
+import { isValidIndianPhone, normalizePhone } from "@/lib/phone";
+
 import { createClient } from "./server";
 
 export async function ensureProfile(userId: string, phone = "") {
@@ -203,29 +205,52 @@ export async function addMemberToGroup(input: {
   whatsappPhone?: string;
 }) {
   const supabase = await createClient();
-  const [{ data: member, error: memberError }, { data: group }, { data: paymentCycles }] =
-    await Promise.all([
-      supabase
-        .from("members")
-        .insert({
-          chit_group_id: input.chitGroupId,
-          name: input.name,
-          phone: input.phone,
-          whatsapp_phone: input.whatsappPhone || input.phone,
-        })
-        .select("*")
-        .single(),
-      supabase
-        .from("chit_groups")
-        .select("monthly_amount")
-        .eq("id", input.chitGroupId)
-        .single(),
-      supabase
-        .from("payment_cycles")
-        .select("*")
-        .eq("chit_group_id", input.chitGroupId)
-        .order("cycle_number", { ascending: true }),
-    ]);
+  const normalizedPhone = normalizePhone(input.phone);
+  const normalizedWhatsappPhone = input.whatsappPhone
+    ? normalizePhone(input.whatsappPhone)
+    : normalizedPhone;
+
+  if (!isValidIndianPhone(input.phone)) {
+    throw new Error("Enter a valid Indian phone number.");
+  }
+
+  if (input.whatsappPhone && !isValidIndianPhone(input.whatsappPhone)) {
+    throw new Error("Enter a valid WhatsApp number or leave it blank.");
+  }
+
+  const [{ data: group }, { data: paymentCycles }, { count }] = await Promise.all([
+    supabase
+      .from("chit_groups")
+      .select("monthly_amount, member_count")
+      .eq("id", input.chitGroupId)
+      .single(),
+    supabase
+      .from("payment_cycles")
+      .select("*")
+      .eq("chit_group_id", input.chitGroupId)
+      .order("cycle_number", { ascending: true }),
+    supabase
+      .from("members")
+      .select("*", { count: "exact", head: true })
+      .eq("chit_group_id", input.chitGroupId),
+  ]);
+
+  if (count !== null && group && count >= Number(group.member_count ?? 0)) {
+    throw new Error(
+      `This chit is full. You set a limit of ${Number(group.member_count ?? 0)} members when creating this chit.`,
+    );
+  }
+
+  const { data: member, error: memberError } = await supabase
+    .from("members")
+    .insert({
+      chit_group_id: input.chitGroupId,
+      name: input.name,
+      phone: normalizedPhone,
+      whatsapp_phone: normalizedWhatsappPhone || normalizedPhone,
+    })
+    .select("*")
+    .single();
 
   if (memberError || !member) {
     throw new Error(memberError?.message ?? "Unable to add member.");
@@ -548,6 +573,34 @@ export async function getStatementData(chitGroupId: string, memberId: string, or
       group: detail.data.group,
       member,
       payments: member.payments ?? [],
+    },
+    error: null,
+  };
+}
+
+export async function getDashboardMemberDetail(
+  chitGroupId: string,
+  memberId: string,
+  organiserId: string,
+) {
+  const supabase = await createClient();
+  const detail = await getDashboardChitGroupDetail(chitGroupId, organiserId);
+
+  if (!detail.data?.group) {
+    return { data: null, error: detail.error };
+  }
+
+  const member = (detail.data.members as any[]).find((entry) => entry.id === memberId);
+
+  if (!member) {
+    return { data: null, error: new Error("Member not found.") };
+  }
+
+  return {
+    data: {
+      group: detail.data.group,
+      member,
+      paymentCycles: detail.data.paymentCycles,
     },
     error: null,
   };
