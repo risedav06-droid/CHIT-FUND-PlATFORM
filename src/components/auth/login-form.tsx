@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { FormFeedback } from "@/components/ui/form-feedback";
 import { FormSubmitButton } from "@/components/ui/form-submit-button";
@@ -19,6 +20,7 @@ const initialState = {
 };
 
 export function LoginForm({ nextPath }: LoginFormProps) {
+  const { t } = useTranslation();
   const [state, formAction] = useActionState(requestOtpAction, initialState);
   const [email, setEmail] = useState("");
   const [resendCountdown, setResendCountdown] = useState(30);
@@ -73,11 +75,10 @@ export function LoginForm({ nextPath }: LoginFormProps) {
 
           <h2 className="mt-5 text-[1.75rem] text-[var(--color-text-primary)]">Check your inbox</h2>
           <p className="mt-3 text-sm leading-7 text-[var(--color-text-body)]">
-            We sent a login link to <span className="font-medium text-[var(--color-text-primary)]">{sentEmail}</span>.
-            Click it to sign in to ChitMate.
+            {t("auth.checkEmailSub", { email: sentEmail })}
           </p>
           <p className="mt-2 text-xs uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-            Link expires in 1 hour.
+            {t("auth.linkExpiry")}
           </p>
 
           <a
@@ -86,7 +87,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
             rel="noreferrer"
             className="amber-button mt-6 w-full justify-center"
           >
-            Open Gmail
+            {t("auth.openGmail")}
           </a>
 
           <form action={formAction} className="mt-5">
@@ -97,7 +98,9 @@ export function LoginForm({ nextPath }: LoginFormProps) {
               disabled={resendCountdown > 0}
               className="text-sm font-medium text-[var(--color-primary-container)] disabled:text-[var(--color-text-muted)]"
             >
-              {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : "Resend link"}
+              {resendCountdown > 0
+                ? t("auth.resendIn", { seconds: resendCountdown })
+                : t("auth.resend")}
             </button>
           </form>
 
@@ -109,7 +112,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
             }}
             className="mt-4 text-sm text-[var(--color-text-body)] underline underline-offset-4"
           >
-            Use a different email
+            {t("auth.differentEmail")}
           </button>
         </div>
       </div>
@@ -127,13 +130,13 @@ export function LoginForm({ nextPath }: LoginFormProps) {
         <input type="hidden" name="next" value={nextPath} />
 
         <label className="space-y-2 text-sm font-medium text-foreground">
-          <span>Email address</span>
+          <span>{t("auth.emailLabel")}</span>
           <div className="rounded-[var(--radius-input)] bg-[var(--color-surface-high)] px-4 py-1.5">
             <Input
               name="email"
               type="email"
               autoComplete="email"
-              placeholder="you@example.com"
+              placeholder={t("auth.emailPlaceholder")}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
@@ -144,12 +147,12 @@ export function LoginForm({ nextPath }: LoginFormProps) {
 
         <div className="glass-shell sticky bottom-4 rounded-[var(--radius-card)] p-3">
           <FormSubmitButton className="w-full justify-center py-3">
-            Send Login Link
+            {t("auth.sendLink")}
           </FormSubmitButton>
         </div>
 
         <p className="mt-3 text-center text-[0.8125rem] leading-[1.5] text-[#9ca3af]">
-          New here? A ChitMate account will be created automatically the first time you sign in.
+          {t("auth.newUser")}
         </p>
       </form>
 
@@ -179,7 +182,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
         }}
       >
         <img src="https://www.google.com/favicon.ico" width={18} height={18} />
-        Continue with Google
+        {t("auth.continueGoogle")}
       </button>
     </>
   );

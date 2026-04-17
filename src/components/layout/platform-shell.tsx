@@ -3,8 +3,10 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslation } from "react-i18next";
 
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { signOutAction } from "@/modules/auth/auth.actions";
 import type { AuthenticatedSession } from "@/modules/auth/auth.service";
 
@@ -84,6 +86,7 @@ function getInitials(value: string) {
 }
 
 export function PlatformShell({ session, children }: PlatformShellProps) {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const displayName = session.user.name || session.user.phone || "Organiser";
 
@@ -97,10 +100,10 @@ export function PlatformShell({ session, children }: PlatformShellProps) {
                 CM
               </div>
               <p className="font-display text-[1.7rem] italic text-[var(--color-primary)]">
-                ChitMate
+                {t("common.appName")}
               </p>
             </div>
-            <p className="editorial-label mt-6">Organiser Portal</p>
+            <p className="editorial-label mt-6">{t("nav.organiserPortal")}</p>
             <p className="mt-3 text-sm font-medium capitalize text-[var(--color-text-primary)]">
               {displayName}
             </p>
@@ -120,7 +123,15 @@ export function PlatformShell({ session, children }: PlatformShellProps) {
                   className={`sidebar-link gap-3 ${isActive ? "sidebar-link-active" : ""}`}
                 >
                   <span>{item.icon}</span>
-                  <span>{item.title}</span>
+                  <span>{t(`nav.${item.title === "Dashboard"
+                    ? "dashboard"
+                    : item.title === "Chit Groups"
+                      ? "chitGroups"
+                      : item.title === "Member Directory"
+                        ? "memberDirectory"
+                        : item.title === "Financial Reports"
+                          ? "financialReports"
+                          : "settings"}`)}</span>
                 </Link>
               );
             })}
@@ -136,13 +147,19 @@ export function PlatformShell({ session, children }: PlatformShellProps) {
                   {displayName}
                 </p>
                 <p className="text-xs uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                  Managing Director
+                  {t("nav.managingDirector")}
                 </p>
               </div>
             </div>
+            <div className="mt-4">
+              <div className="mb-1 text-[0.75rem] uppercase tracking-[0.05em] text-[#717973]">
+                Language / భాష
+              </div>
+              <LanguageSwitcher />
+            </div>
             <form action={signOutAction} className="mt-4">
               <button type="submit" className="ghost-button w-full justify-center">
-                Sign Out
+                {t("common.signOut")}
               </button>
             </form>
           </div>

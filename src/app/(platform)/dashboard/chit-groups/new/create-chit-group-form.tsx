@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 
 import type { CreateChitGroupFormState } from "@/app/(platform)/dashboard/chit-groups/actions";
 import { createDashboardChitGroupAction } from "@/app/(platform)/dashboard/chit-groups/actions";
@@ -32,6 +33,7 @@ function calcEndDate(startDate: string, duration: string, unit: "months" | "year
 }
 
 export function CreateChitGroupForm() {
+  const { t } = useTranslation();
   const [state, formAction, isPending] = useActionState(createDashboardChitGroupAction, initialState);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -72,19 +74,19 @@ export function CreateChitGroupForm() {
       const next = { ...current };
 
       if (field === "name") {
-        if (!value || value.trim().length < 3) next.name = "Chit name must be at least 3 characters";
+        if (!value || value.trim().length < 3) next.name = t("errors.nameRequired");
         else delete next.name;
       }
 
       if (field === "memberCount") {
         const count = Number(value);
-        if (!value || count < 2 || count > 100) next.memberCount = "Must be between 2 and 100 members";
+        if (!value || count < 2 || count > 100) next.memberCount = t("errors.membersRange");
         else delete next.memberCount;
       }
 
       if (field === "monthlyAmount") {
         const amount = Number(value);
-        if (!value || amount <= 0) next.monthlyAmount = "Enter an amount greater than ₹0";
+        if (!value || amount <= 0) next.monthlyAmount = t("errors.amountRequired");
         else delete next.monthlyAmount;
       }
 
@@ -93,8 +95,8 @@ export function CreateChitGroupForm() {
         if (!value || months < 1 || months > 120) {
           next.durationValue =
             nextUnit === "years"
-              ? "Must be between 1 and 10 years"
-              : "Must be between 1 and 120 months";
+              ? t("errors.durationYears")
+              : t("errors.durationMonths");
         } else {
           delete next.durationValue;
         }
@@ -117,11 +119,11 @@ export function CreateChitGroupForm() {
       <div className="space-y-6">
         <section className="rounded-[var(--radius-card)] bg-white px-8 py-8 shadow-[var(--shadow-card)]">
           <Link href="/dashboard" className="editorial-label">
-            Back to dashboard
+            {t("common.back")}
           </Link>
-          <h1 className="mt-4 text-[1.875rem]">Create New Chit Group</h1>
+          <h1 className="mt-4 text-[1.875rem]">{t("chitGroup.create")}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--color-text-body)]">
-            Shape the group once and launch with a clean, member-ready structure.
+            {t("chitGroup.createSub")}
           </p>
 
           <div className="mt-8 grid gap-3 md:grid-cols-3">
@@ -142,7 +144,7 @@ export function CreateChitGroupForm() {
 
           <div className="grid gap-6">
             <label className="space-y-2">
-              <span className="editorial-label !text-[var(--color-text-muted)]">Chit Name</span>
+              <span className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.chitName")}</span>
               <Input
                 name="name"
                 value={name}
@@ -150,26 +152,26 @@ export function CreateChitGroupForm() {
                   setName(event.target.value);
                   validate("name", event.target.value);
                 }}
-                placeholder="e.g. Golden Years Fund"
+                placeholder={t("chitGroup.chitNamePlaceholder")}
                 required
               />
               <FieldError message={errors.name || state.fieldErrors?.name} />
             </label>
 
             <div className="space-y-3">
-              <span className="editorial-label !text-[var(--color-text-muted)]">Chit Type</span>
+              <span className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.chitType")}</span>
               <input type="hidden" name="chitType" value={chitType} />
               <div className="grid gap-3 md:grid-cols-2">
                 {[
                   {
                     value: "auction" as const,
-                    title: "Auction-based",
-                    desc: "Members bid monthly. Highest discount wins the pot. Better for savings-focused groups.",
+                    title: t("chitGroup.auctionBased"),
+                    desc: t("chitGroup.auctionDesc"),
                   },
                   {
                     value: "fixed_rotation" as const,
-                    title: "Fixed Rotation",
-                    desc: "Order decided upfront. No bidding required. Better for trusted small groups.",
+                    title: t("chitGroup.fixedRotation"),
+                    desc: t("chitGroup.fixedDesc"),
                   },
                 ].map((option) => (
                   <div
@@ -194,18 +196,18 @@ export function CreateChitGroupForm() {
             </div>
 
             <label className="space-y-2">
-              <span className="editorial-label !text-[var(--color-text-muted)]">Description</span>
+              <span className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.description")}</span>
               <Textarea
                 name="description"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                placeholder="Optional — describe this chit group"
+                placeholder={t("chitGroup.descriptionPlaceholder")}
               />
             </label>
 
             <div className="grid gap-6 md:grid-cols-2">
               <label className="space-y-2">
-                <span className="editorial-label !text-[var(--color-text-muted)]">Number of Members</span>
+                <span className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.numberOfMembers")}</span>
                 <Input
                   name="memberCount"
                   type="number"
@@ -216,7 +218,7 @@ export function CreateChitGroupForm() {
                     setMemberCount(event.target.value);
                     validate("memberCount", event.target.value);
                   }}
-                  placeholder="e.g. 20"
+                  placeholder={t("chitGroup.membersPlaceholder")}
                   required
                 />
                 <p className="text-sm text-[var(--color-text-muted)]">Including yourself as the foreman</p>
@@ -224,7 +226,7 @@ export function CreateChitGroupForm() {
               </label>
 
               <label className="space-y-2">
-                <span className="editorial-label !text-[var(--color-text-muted)]">Monthly Contribution Amount ₹</span>
+                <span className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.monthlyAmount")} ₹</span>
                 <Input
                   name="monthlyAmount"
                   type="number"
@@ -235,14 +237,14 @@ export function CreateChitGroupForm() {
                     setMonthlyAmount(event.target.value);
                     validate("monthlyAmount", event.target.value);
                   }}
-                  placeholder="e.g. 5000"
+                  placeholder={t("chitGroup.amountPlaceholder")}
                   required
                 />
                 <FieldError message={errors.monthlyAmount || state.fieldErrors?.monthlyAmount} />
               </label>
 
               <label className="space-y-2">
-                <span className="editorial-label !text-[var(--color-text-muted)]">Duration</span>
+                <span className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.duration")}</span>
                 <input
                   type="hidden"
                   name="durationMonths"
@@ -258,7 +260,7 @@ export function CreateChitGroupForm() {
                       setDurationValue(event.target.value);
                       validate("durationValue", event.target.value);
                     }}
-                    placeholder="e.g. 12"
+                    placeholder={t("chitGroup.durationPlaceholder")}
                     required
                   />
                   <select
@@ -270,8 +272,8 @@ export function CreateChitGroupForm() {
                     }}
                     className="recessed-input h-11 w-full"
                   >
-                    <option value="months">Months</option>
-                    <option value="years">Years</option>
+                    <option value="months">{t("chitGroup.months")}</option>
+                    <option value="years">{t("chitGroup.years")}</option>
                   </select>
                 </div>
                 {durationUnit === "years" ? (
@@ -283,7 +285,7 @@ export function CreateChitGroupForm() {
               </label>
 
               <label className="space-y-2">
-                <span className="editorial-label !text-[var(--color-text-muted)]">Foreman Commission %</span>
+                <span className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.commission")}</span>
                 <Input
                   name="commissionPct"
                   type="number"
@@ -300,7 +302,7 @@ export function CreateChitGroupForm() {
             </div>
 
             <label className="space-y-2">
-              <span className="editorial-label !text-[var(--color-text-muted)]">Start Date</span>
+                <span className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.startDate")}</span>
               <Input
                 name="startDate"
                 type="date"
@@ -311,7 +313,7 @@ export function CreateChitGroupForm() {
               <FieldError message={state.fieldErrors?.startDate} />
               {summary.endDate ? (
                 <p className="mt-1 text-[0.8rem] font-medium text-[#1b4332]">
-                  Estimated end date: {summary.endDate}
+                  {t("chitGroup.estimatedEndDate", { date: summary.endDate })}
                 </p>
               ) : null}
             </label>
@@ -337,11 +339,11 @@ export function CreateChitGroupForm() {
                     Creating...
                   </>
                 ) : (
-                  "Create Chit Group"
+                  t("chitGroup.createButton")
                 )}
               </button>
               <Link href="/dashboard" className="ghost-button w-full justify-center sm:w-auto">
-                Cancel
+                {t("common.cancel")}
               </Link>
             </div>
           </div>
@@ -353,43 +355,43 @@ export function CreateChitGroupForm() {
           className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]"
           style={{ boxShadow: "inset 4px 0 0 #1b4332, 0 4px 24px rgba(27,28,26,0.06)" }}
         >
-          <p className="editorial-label">Your Chit Summary</p>
+          <p className="editorial-label">{t("common.tagline")}</p>
           <div className="mt-5 space-y-4 text-sm text-[var(--color-text-body)]">
             <div>
-              <p className="editorial-label !text-[var(--color-text-muted)]">Chit Name</p>
+              <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.chitName")}</p>
               <p className="mt-2 font-display text-[1.35rem] text-[var(--color-text-primary)]">
                 {name || "Golden Years Circle"}
               </p>
             </div>
             <div className="rounded-[var(--radius-card)] bg-[var(--color-surface-low)] p-4">
-              <p className="editorial-label !text-[var(--color-text-muted)]">Monthly Pot</p>
+              <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.potValue")}</p>
               <p className="mt-2 font-display text-[1.6rem] text-[var(--color-text-primary)]">
                 {formatCurrency(summary.monthlyPot)}
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
               <div>
-                <p className="editorial-label !text-[var(--color-text-muted)]">Your Commission</p>
+                <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.commissionLabel")}</p>
                 <p className="mt-2 font-display text-[1.35rem] text-[var(--color-text-primary)]">
                   {formatCurrency(summary.monthlyCommission)} per month
                 </p>
               </div>
               <div>
-                <p className="editorial-label !text-[var(--color-text-muted)]">Duration</p>
+                <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.duration_label")}</p>
                 <p className="mt-2 font-display text-[1.35rem] text-[var(--color-text-primary)]">
                   {summary.months === 0 ? "0 months" : `${summary.months} months`}
                 </p>
               </div>
             </div>
             <div>
-              <p className="editorial-label !text-[var(--color-text-muted)]">Total Value</p>
+              <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.potValue")}</p>
               <p className="mt-2 font-display text-[1.6rem] text-[var(--color-text-primary)]">
                 {formatCurrency(summary.totalValue)}
               </p>
             </div>
             {summary.endDate ? (
               <div>
-                <p className="editorial-label !text-[var(--color-text-muted)]">Estimated End Date</p>
+                <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.endDate")}</p>
                 <p className="mt-2 font-display text-[1.35rem] text-[var(--color-text-primary)]">
                   {summary.endDate}
                 </p>

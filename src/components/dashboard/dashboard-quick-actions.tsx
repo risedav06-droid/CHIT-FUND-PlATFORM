@@ -2,6 +2,7 @@
 
 import type { Route } from "next";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 
 type DashboardQuickActionsProps = {
   bulkReminderMessage: string;
@@ -29,6 +30,7 @@ const actions = [
 ];
 
 export function DashboardQuickActions({ bulkReminderMessage }: DashboardQuickActionsProps) {
+  const { t } = useTranslation();
   const sendReminders = () => {
     if (!bulkReminderMessage) {
       window.alert("No pending reminders right now.");
@@ -41,7 +43,7 @@ export function DashboardQuickActions({ bulkReminderMessage }: DashboardQuickAct
   return (
     <section className="space-y-4">
       <div>
-        <h2>Quick Actions</h2>
+        <h2>{t("dashboard.quickActions")}</h2>
         <p className="mt-1 text-sm text-[var(--color-text-body)]">
           Jump into your most common organiser tasks.
         </p>
@@ -57,7 +59,13 @@ export function DashboardQuickActions({ bulkReminderMessage }: DashboardQuickAct
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-surface-low)] text-sm font-semibold text-[var(--color-primary)]">
               {action.icon}
             </div>
-            <p className="mt-4 text-lg font-medium text-[var(--color-text-primary)]">{action.label}</p>
+            <p className="mt-4 text-lg font-medium text-[var(--color-text-primary)]">
+              {action.label === "Create Chit"
+                ? t("dashboard.createChit")
+                : action.label === "Add Member"
+                  ? t("dashboard.addMember")
+                  : t("dashboard.statement")}
+            </p>
             <p className="mt-1 text-sm text-[var(--color-text-body)]">{action.description}</p>
           </Link>
         ))}
@@ -70,7 +78,7 @@ export function DashboardQuickActions({ bulkReminderMessage }: DashboardQuickAct
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(37,211,102,0.14)] text-sm font-semibold text-[#25d366]">
             W
           </div>
-          <p className="mt-4 text-lg font-medium text-[var(--color-text-primary)]">Send Reminders</p>
+          <p className="mt-4 text-lg font-medium text-[var(--color-text-primary)]">{t("dashboard.sendReminders")}</p>
           <p className="mt-1 text-sm text-[var(--color-text-body)]">Open WhatsApp for all pending members</p>
         </button>
 
@@ -81,7 +89,7 @@ export function DashboardQuickActions({ bulkReminderMessage }: DashboardQuickAct
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-surface-low)] text-sm font-semibold text-[var(--color-primary)]">
             {actions[2].icon}
           </div>
-          <p className="mt-4 text-lg font-medium text-[var(--color-text-primary)]">{actions[2].label}</p>
+          <p className="mt-4 text-lg font-medium text-[var(--color-text-primary)]">{t("dashboard.statement")}</p>
           <p className="mt-1 text-sm text-[var(--color-text-body)]">{actions[2].description}</p>
         </Link>
       </div>

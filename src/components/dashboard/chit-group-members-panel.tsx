@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 
 import type { AddMemberFormState } from "@/app/(platform)/dashboard/chit-groups/actions";
 import { AddMemberInlineForm } from "@/components/dashboard/add-member-inline-form";
@@ -65,6 +66,7 @@ export function ChitGroupMembersPanel({
   daysUntilDue,
   defaulterCount,
 }: ChitGroupMembersPanelProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [members, setMembers] = useState(initialMembers);
   const [toast, setToast] = useState<string | null>(null);
@@ -152,7 +154,7 @@ export function ChitGroupMembersPanel({
             },
           ],
     );
-    setToast(`${member.name} added successfully ✓`);
+    setToast(`${t("chitGroup.memberAdded")} ✓`);
     window.setTimeout(() => setToast(null), 2400);
   };
 
@@ -178,7 +180,7 @@ export function ChitGroupMembersPanel({
     const unpaidMembers = members.filter((entry) => entry.currentPayment?.status === "unpaid");
 
     if (unpaidMembers.length === 0) {
-      window.alert("All members have paid this cycle!");
+      window.alert(t("chitGroup.allPaid"));
       return;
     }
 
@@ -268,30 +270,29 @@ export function ChitGroupMembersPanel({
           <section className="min-w-0 rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
             <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2>Members</h2>
+                <h2>{t("chitGroup.members")}</h2>
                 <p className="mt-1 text-sm text-[var(--color-text-body)]">
-                  Track the current cycle and keep every member up to date.
+                  {t("chitGroup.trackMembers")}
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <span className="ledger-chip bg-[var(--color-surface-low)] text-[var(--color-text-body)]">
-                  {members.length} / {memberLimit} members
+                  {t("chitGroup.memberLimit", { current: members.length, max: memberLimit })}
                 </span>
                 <a
                   href="#add-member-form"
                   className={`primary-button ${currentLimitReached ? "pointer-events-none opacity-50" : ""}`}
                 >
-                  Add Member
+                  {t("chitGroup.addMember")}
                 </a>
               </div>
             </div>
 
             {!isAuctionType ? (
               <div id="rotation-order" className="mb-5 rounded-[var(--radius-card)] bg-[var(--color-surface-low)] p-4">
-                <p className="editorial-label !text-[var(--color-text-muted)]">Rotation Order</p>
+                <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.rotationOrder")}</p>
                 <p className="mt-3 text-sm text-[#6b7280]">
-                  The pot will be distributed in this order. Each member receives the full pot in
-                  their designated month.
+                  The pot will be distributed in this order. Each member receives the full pot in their designated month.
                 </p>
                 <div className="mt-4 space-y-1">
                   {members.map((entry, index) => (
@@ -312,7 +313,7 @@ export function ChitGroupMembersPanel({
                       <div className="min-w-0 flex-1">
                         <div className="font-medium text-[#1b1c1a]">{entry.member.name}</div>
                         <div className="text-[0.75rem] text-[#9ca3af]">
-                          Month {index + 1} · {entry.member.pot_taken ? "Pot received ✓" : "Waiting"}
+                          Month {index + 1} · {entry.member.pot_taken ? "Pot received ✓" : t("chitGroup.waiting")}
                         </div>
                       </div>
                       {entry.member.pot_taken ? (
@@ -326,16 +327,16 @@ export function ChitGroupMembersPanel({
 
             <div className="hidden items-center gap-3 px-4 pb-2 lg:flex">
               <div className="min-w-0 flex-[1_1_160px]">
-                <p className="editorial-label !text-[var(--color-text-muted)]">Member</p>
+                <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.members")}</p>
               </div>
               <div className="w-[110px] text-right">
-                <p className="editorial-label !text-[var(--color-text-muted)]">Amount</p>
+                <p className="editorial-label !text-[var(--color-text-muted)]">{t("member.amountDue")}</p>
               </div>
               <div className="w-[88px]">
                 <p className="editorial-label !text-[var(--color-text-muted)]">Status</p>
               </div>
               <div className="w-[88px]">
-                <p className="editorial-label !text-[var(--color-text-muted)]">Pot Taken</p>
+                <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.potTaken")}</p>
               </div>
               <div className="w-10 text-right">
                 <p className="editorial-label !text-[var(--color-text-muted)]">Actions</p>
@@ -344,8 +345,8 @@ export function ChitGroupMembersPanel({
 
             {members.length === 0 ? (
               <EmptyState
-                title="No members yet. Add your first member."
-                subtitle="Once members are added, this table will show collection status, reminders, and portal links."
+                title={t("chitGroup.noMembers")}
+                subtitle={t("chitGroup.trackMembers")}
               />
             ) : (
               <div className="space-y-3">
@@ -392,7 +393,7 @@ export function ChitGroupMembersPanel({
 
           <section id="payments" className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
             <div className="mb-5">
-              <h2>Payments</h2>
+              <h2>{t("chitGroup.payments")}</h2>
               <p className="mt-1 text-sm text-[var(--color-text-body)]">
                 Confirm collection for each member in the current cycle.
               </p>
@@ -400,8 +401,8 @@ export function ChitGroupMembersPanel({
 
             {members.length === 0 ? (
               <EmptyState
-                title="No payments yet"
-                subtitle="Add members first and their current-cycle payment rows will appear here."
+                title={t("member.noPayments")}
+                subtitle={t("member.noPayments")}
               />
             ) : (
               <div className="space-y-3">
@@ -423,7 +424,7 @@ export function ChitGroupMembersPanel({
                         </p>
                         {entry.currentPayment?.status === "paid" ? (
                           <span className="ledger-chip bg-[var(--color-success-bg)] text-[var(--color-success-text)]">
-                            Paid
+                            {t("chitGroup.paid")}
                           </span>
                         ) : (
                           <button
@@ -431,7 +432,7 @@ export function ChitGroupMembersPanel({
                             onClick={() => entry.currentPayment && openPayment(entry.currentPayment.id)}
                             className="amber-button"
                           >
-                            Mark Paid
+                            {t("chitGroup.markPaid")}
                           </button>
                         )}
                       </div>
@@ -480,14 +481,14 @@ export function ChitGroupMembersPanel({
                             onClick={() => entry.currentPayment && confirmPayment(entry.currentPayment.id)}
                             className="primary-button w-full justify-center"
                           >
-                            Confirm Payment
+                            {t("common.confirm")}
                           </button>
                           <button
                             type="button"
                             onClick={closePaymentPanel}
                             className="ghost-button w-full justify-center"
                           >
-                            Cancel
+                            {t("common.cancel")}
                           </button>
                         </div>
                       </div>
@@ -503,7 +504,7 @@ export function ChitGroupMembersPanel({
             disabled={currentLimitReached}
             disabledMessage={
               currentLimitReached
-                ? `This chit is full. You set a limit of ${memberLimit} members when creating this chit.`
+                  ? `This chit is full. You set a limit of ${memberLimit} members when creating this chit.`
                 : undefined
             }
             onMemberAdded={handleMemberAdded}
@@ -512,10 +513,10 @@ export function ChitGroupMembersPanel({
 
         <div className="flex flex-col gap-4 xl:sticky xl:top-6">
           <section className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
-            <h2>{monthLabel} Cycle Collection</h2>
+            <h2>{t("chitGroup.cycleCollection", { month: monthLabel })}</h2>
             <div className="mt-5 flex items-center justify-between text-sm text-[var(--color-text-body)]">
               <span>
-                {stats.paidCount} / {stats.totalCount} Members paid
+                {t("chitGroup.membersPaidOf", { paid: stats.paidCount, total: stats.totalCount })}
               </span>
               <span>{stats.collectionRate}%</span>
             </div>
@@ -527,13 +528,13 @@ export function ChitGroupMembersPanel({
             </div>
             <div className="mt-5 grid grid-cols-2 gap-4">
               <div>
-                <p className="editorial-label !text-[var(--color-text-muted)]">Collected</p>
+                <p className="editorial-label !text-[var(--color-text-muted)]">{t("dashboard.collected")}</p>
                 <p className="mt-2 font-display text-[1.7rem] text-[var(--color-success-text)]">
                   {formatCurrency(stats.collected)}
                 </p>
               </div>
               <div>
-                <p className="editorial-label !text-[var(--color-text-muted)]">Outstanding</p>
+                <p className="editorial-label !text-[var(--color-text-muted)]">{t("dashboard.outstanding")}</p>
                 <p className="mt-2 font-display text-[1.7rem] text-[#dc2626]">
                   {formatCurrency(stats.outstanding)}
                 </p>
@@ -544,15 +545,15 @@ export function ChitGroupMembersPanel({
               className="primary-button mt-6 w-full justify-center"
               onClick={handleBulkReminder}
             >
-              Send Bulk Reminders
+              {t("chitGroup.sendBulkReminders")}
             </button>
           </section>
 
           <section className="rounded-[var(--radius-card)] bg-[var(--color-primary-container)] p-6 text-white shadow-[var(--shadow-card)]">
-            <p className="editorial-label !text-[rgba(255,255,255,0.72)]">Next Auction</p>
+            <p className="editorial-label !text-[rgba(255,255,255,0.72)]">{t("chitGroup.nextAuction")}</p>
             <p className="mt-3 font-display text-[1.5rem] italic">{nextAuctionDate}</p>
             <p className="mt-3 text-sm leading-7 text-white/78">
-              Auction starts via Member Portal
+              {t("chitGroup.auctionViaPortal")}
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               {members.slice(0, 4).map((entry) => (
@@ -603,12 +604,12 @@ export function ChitGroupMembersPanel({
             className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]"
             style={{ boxShadow: "inset 4px 0 0 #d4a843, 0 4px 24px rgba(27,28,26,0.06)" }}
           >
-            <p className="editorial-label !text-[var(--color-amber-text)]">Invite Members</p>
+            <p className="editorial-label !text-[var(--color-amber-text)]">{t("chitGroup.addMember")}</p>
             <p className="mt-3 text-sm leading-7 text-[var(--color-text-body)]">
               Share portal links so members can track their own payments.
             </p>
             <button type="button" className="amber-button mt-5 w-full justify-center" onClick={copyAllLinks}>
-              Copy All Links
+              {t("common.copy")}
             </button>
           </section>
 

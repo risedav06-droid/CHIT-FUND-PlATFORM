@@ -1,5 +1,8 @@
+"use client";
+
 import type { Route } from "next";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 
 import { StatusChip } from "@/components/ui/status-chip";
 
@@ -30,6 +33,7 @@ export function ChitGroupCard({
   href,
   reminderHref,
 }: ChitGroupCardProps) {
+  const { t } = useTranslation();
   const progress = totalMembers > 0 ? Math.min((paidCount / totalMembers) * 100, 100) : 0;
 
   return (
@@ -40,15 +44,15 @@ export function ChitGroupCard({
             <div>
               <h3 className="text-2xl text-[var(--color-text-primary)]">{name}</h3>
               <p className="mt-2 text-sm text-[var(--color-text-body)]">
-                {memberCount} members enrolled • Cycle {currentCycle} of {totalCycles}
+                {memberCount} {t("chitGroup.members").toLowerCase()} • Cycle {currentCycle} of {totalCycles}
               </p>
             </div>
             {badge === "HIGH YIELD" ? (
               <span className="ledger-chip bg-[rgba(212,168,67,0.18)] text-[var(--color-amber-text)]">
-                {badge}
+                {t("chitGroup.highYield")}
               </span>
             ) : (
-              <StatusChip status="completed">{badge}</StatusChip>
+              <StatusChip status="completed">{t("chitGroup.standard")}</StatusChip>
             )}
           </div>
 
@@ -61,11 +65,11 @@ export function ChitGroupCard({
             </div>
             <div className="mt-3 flex items-center justify-between text-sm text-[var(--color-text-body)]">
               <span>
-                {paidCount} / {totalMembers} paid
+                {paidCount} / {totalMembers} {t("chitGroup.paid")}
               </span>
               <span>
-                Next auction: {nextAuction}
-                {outstandingAmount ? ` · ${outstandingAmount} outstanding` : ""}
+                {t("dashboard.nextAuction")}: {nextAuction}
+                {outstandingAmount ? ` · ${outstandingAmount} ${t("dashboard.outstanding").toLowerCase()}` : ""}
               </span>
             </div>
           </div>
@@ -73,20 +77,20 @@ export function ChitGroupCard({
 
         <div className="flex flex-col justify-between gap-5 rounded-[var(--radius-card)] bg-[var(--color-surface-low)] p-5">
           <div>
-            <p className="editorial-label">Next auction</p>
+            <p className="editorial-label">{t("dashboard.nextAuction")}</p>
             <p className="mt-2 text-lg italic text-[var(--color-primary)]">{nextAuction}</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link href={href as Route} className="ghost-button">
-              View
+              {t("common.view")}
             </Link>
             {reminderHref ? (
               <a href={reminderHref} target="_blank" rel="noreferrer" className="primary-button">
-                Remind All
+                {t("dashboard.sendReminders")}
               </a>
             ) : (
               <button type="button" className="primary-button">
-                Remind All
+                {t("dashboard.sendReminders")}
               </button>
             )}
           </div>

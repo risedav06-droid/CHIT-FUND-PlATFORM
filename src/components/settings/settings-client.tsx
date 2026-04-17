@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 type SettingsClientProps = {
   email: string;
@@ -13,6 +16,7 @@ export function SettingsClient({
   initialDisplayName,
   initialPhone,
 }: SettingsClientProps) {
+  const { t } = useTranslation();
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [phone, setPhone] = useState(initialPhone);
   const [saved, setSaved] = useState<string | null>(null);
@@ -27,8 +31,8 @@ export function SettingsClient({
   return (
     <div className="space-y-6">
       <section className="rounded-[var(--radius-card)] bg-white px-8 py-8 shadow-[var(--shadow-card)]">
-        <p className="editorial-label">Settings</p>
-        <h1 className="mt-3 text-[1.875rem]">Account and reminder settings</h1>
+        <p className="editorial-label">{t("nav.settings")}</p>
+        <h1 className="mt-3 text-[1.875rem]">{t("settings.title")}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--color-text-body)]">
           Keep your organiser details current and shape how ChitMate nudges members.
         </p>
@@ -41,18 +45,18 @@ export function SettingsClient({
       ) : null}
 
       <section className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
-        <h2>Profile Settings</h2>
+        <h2>{t("settings.profile")}</h2>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <label className="space-y-2">
-            <span className="editorial-label !text-[var(--color-text-muted)]">Display Name</span>
+            <span className="editorial-label !text-[var(--color-text-muted)]">{t("settings.displayName")}</span>
             <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} className="recessed-input h-11 w-full" />
           </label>
           <label className="space-y-2">
-            <span className="editorial-label !text-[var(--color-text-muted)]">Phone Number</span>
+            <span className="editorial-label !text-[var(--color-text-muted)]">{t("settings.phone")}</span>
             <input value={phone} onChange={(event) => setPhone(event.target.value)} className="recessed-input h-11 w-full" />
           </label>
           <label className="space-y-2 md:col-span-2">
-            <span className="editorial-label !text-[var(--color-text-muted)]">Email</span>
+            <span className="editorial-label !text-[var(--color-text-muted)]">{t("settings.email")}</span>
             <input value={email} readOnly className="recessed-input h-11 w-full opacity-70" />
           </label>
         </div>
@@ -72,15 +76,23 @@ export function SettingsClient({
             }
           }}
         >
-          Save
+          {t("common.save")}
         </button>
       </section>
 
       <section className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
-        <h2>Notification Preferences</h2>
+        <h2>{t("settings.language")}</h2>
+        <p className="mt-2 text-sm text-[var(--color-text-body)]">{t("settings.selectLanguage")}</p>
+        <div className="mt-4">
+          <LanguageSwitcher />
+        </div>
+      </section>
+
+      <section className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
+        <h2>{t("settings.notifications")}</h2>
         <div className="mt-5 space-y-4">
           <label className="flex items-center justify-between gap-4 rounded-[var(--radius-card)] bg-[var(--color-surface-low)] px-4 py-4">
-            <span>WhatsApp reminders</span>
+            <span>{t("settings.whatsappReminders")}</span>
             <input type="checkbox" checked={whatsappReminders} onChange={() => setWhatsappReminders((value) => !value)} />
           </label>
           <div className="grid gap-3 md:grid-cols-3">
@@ -108,24 +120,24 @@ export function SettingsClient({
             setSaved("Notification preferences saved.");
             window.setTimeout(() => setSaved(null), 2200);
           }}>
-            Save
+            {t("common.save")}
           </button>
         </div>
       </section>
 
       <section className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
-        <h2>Account</h2>
+        <h2>{t("settings.title")}</h2>
         <div className="mt-5 space-y-4">
           <div className="rounded-[var(--radius-card)] bg-[var(--color-surface-low)] px-4 py-4">
-            <p className="editorial-label !text-[var(--color-text-muted)]">Plan</p>
+            <p className="editorial-label !text-[var(--color-text-muted)]">{t("settings.plan")}</p>
             <div className="mt-2 flex items-center justify-between gap-4">
-              <span>Free</span>
-              <button type="button" className="amber-button">Upgrade to Pro</button>
+              <span>{t("settings.free")}</span>
+              <button type="button" className="amber-button">{t("settings.upgradePro")}</button>
             </div>
           </div>
-          <button type="button" className="ghost-button">Sign out of all devices</button>
+          <button type="button" className="ghost-button">{t("settings.signOutAll")}</button>
           <button type="button" className="text-sm font-medium text-[var(--color-error-text)]" onClick={() => setShowDelete(true)}>
-            Delete account
+            {t("settings.deleteAccount")}
           </button>
         </div>
       </section>
@@ -133,16 +145,16 @@ export function SettingsClient({
       {showDelete ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-[rgba(27,28,26,0.18)] px-4">
           <div className="w-full max-w-md rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-float)]">
-            <h3>Delete account</h3>
+            <h3>{t("settings.deleteAccount")}</h3>
             <p className="mt-3 text-sm leading-7 text-[var(--color-text-body)]">
               This is a confirmation step only for now. Account deletion will be added with a full data export flow.
             </p>
             <div className="mt-6 flex gap-3">
               <button type="button" className="ghost-button flex-1 justify-center" onClick={() => setShowDelete(false)}>
-                Cancel
+                {t("common.cancel")}
               </button>
               <button type="button" className="amber-button flex-1 justify-center" onClick={() => setShowDelete(false)}>
-                Understood
+                {t("common.confirm")}
               </button>
             </div>
           </div>
