@@ -147,6 +147,10 @@ export function LoginForm({ nextPath }: LoginFormProps) {
             Send Login Link
           </FormSubmitButton>
         </div>
+
+        <p className="mt-3 text-center text-[0.8125rem] leading-[1.5] text-[#9ca3af]">
+          New here? A ChitMate account will be created automatically the first time you sign in.
+        </p>
       </form>
 
       <div className="my-5 flex items-center gap-3">

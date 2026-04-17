@@ -51,8 +51,8 @@ function validateCreateChitGroup(formData: FormData): CreateChitGroupFormState {
   if (!Number.isFinite(monthlyAmount) || monthlyAmount <= 0) {
     fieldErrors.monthlyAmount = "Monthly amount must be greater than 0.";
   }
-  if (!Number.isFinite(durationMonths) || durationMonths < 1 || durationMonths > 60) {
-    fieldErrors.durationMonths = "Duration must be between 1 and 60 months.";
+  if (!Number.isFinite(durationMonths) || durationMonths < 1 || durationMonths > 120) {
+    fieldErrors.durationMonths = "Duration must be between 1 and 120 months.";
   }
   if (!Number.isFinite(commissionPct)) {
     fieldErrors.commissionPct = "Enter a valid commission percentage.";

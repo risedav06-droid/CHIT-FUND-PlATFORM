@@ -291,14 +291,14 @@ export default async function DashboardPage() {
           <section className="rounded-[var(--radius-card)] bg-[var(--color-primary-container)] p-6 text-white shadow-[var(--shadow-card)]">
             <h2 className="text-white">Automate Reminders</h2>
             <p className="mt-3 text-sm leading-7 text-white/78">
-              Set up WhatsApp reminders for all pending members.
+              Set up WhatsApp reminders in Settings. Coming soon on ChitMate Pro.
             </p>
-            <button
-              type="button"
+            <Link
+              href="/dashboard/settings"
               className="mt-6 inline-flex rounded-[var(--radius-button)] bg-white px-5 py-3 text-sm font-semibold text-[var(--color-primary-container)]"
             >
               Enable Now
-            </button>
+            </Link>
           </section>
         </aside>
       </div>

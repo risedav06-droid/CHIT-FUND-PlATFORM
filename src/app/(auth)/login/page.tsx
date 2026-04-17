@@ -20,17 +20,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             CM
           </div>
           <p className="editorial-label mt-4">ChitMate</p>
-          <h1 className="mt-4 text-4xl text-foreground">Welcome back</h1>
+          <h1 className="mt-4 text-4xl text-foreground">Welcome to ChitMate</h1>
           <p className="mt-3 text-sm leading-7 text-[var(--text-body)]">
-            Enter your email address to continue
+            Enter your email to sign in or create your account. We&apos;ll send you a secure login link
+            — no password needed.
           </p>
         </div>
 
         <LoginForm nextPath={nextPath} />
-
-        <p className="mt-6 text-center text-sm text-[var(--text-body)]">
-          New to ChitMate? It&apos;s free to get started
-        </p>
       </section>
     </main>
   );

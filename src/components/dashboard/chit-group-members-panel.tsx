@@ -289,14 +289,36 @@ export function ChitGroupMembersPanel({
             {!isAuctionType ? (
               <div id="rotation-order" className="mb-5 rounded-[var(--radius-card)] bg-[var(--color-surface-low)] p-4">
                 <p className="editorial-label !text-[var(--color-text-muted)]">Rotation Order</p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <p className="mt-3 text-sm text-[#6b7280]">
+                  The pot will be distributed in this order. Each member receives the full pot in
+                  their designated month.
+                </p>
+                <div className="mt-4 space-y-1">
                   {members.map((entry, index) => (
-                    <span
+                    <div
                       key={entry.member.id}
-                      className="ledger-chip bg-white text-[var(--color-text-primary)]"
+                      className="flex items-center gap-3 py-3"
+                      style={{ borderBottom: "1px solid #f5f3f0" }}
                     >
-                      {index + 1}. {entry.member.name}
-                    </span>
+                      <div
+                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[0.875rem] font-bold"
+                        style={{
+                          background: entry.member.pot_taken ? "#dcfce7" : "#f5f3f0",
+                          color: entry.member.pot_taken ? "#166534" : "#6b7280",
+                        }}
+                      >
+                        {index + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-[#1b1c1a]">{entry.member.name}</div>
+                        <div className="text-[0.75rem] text-[#9ca3af]">
+                          Month {index + 1} · {entry.member.pot_taken ? "Pot received ✓" : "Waiting"}
+                        </div>
+                      </div>
+                      {entry.member.pot_taken ? (
+                        <span className="ledger-chip bg-[#dcfce7] text-[#166534]">Done</span>
+                      ) : null}
+                    </div>
                   ))}
                 </div>
               </div>
