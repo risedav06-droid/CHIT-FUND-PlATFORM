@@ -158,7 +158,7 @@ export async function getOrganiserDashboardInsights(organiserId: string) {
     };
   }
 
-  const [{ data: members }, { data: cycles }] = await Promise.all([
+  const [{ data: members }, { data: cycles }, { count: totalMembersCount }] = await Promise.all([
     supabase
       .from("members")
       .select("id, name, phone, invite_token, chit_group_id, is_active, created_at, pot_taken")
@@ -170,6 +170,11 @@ export async function getOrganiserDashboardInsights(organiserId: string) {
       .select("id, chit_group_id, cycle_number, due_date, status, created_at")
       .in("chit_group_id", groupIds)
       .order("cycle_number", { ascending: true }),
+    supabase
+      .from("members")
+      .select("*", { count: "exact", head: true })
+      .in("chit_group_id", groupIds)
+      .eq("is_active", true),
   ]);
 
   const cycleIds = (cycles ?? []).map((cycle: any) => cycle.id);
@@ -230,7 +235,7 @@ export async function getOrganiserDashboardInsights(organiserId: string) {
   const currentCyclePayments = payments.filter((payment: any) => currentCycleIds.has(payment.cycle_id));
   const paidPayments = currentCyclePayments.filter((payment: any) => payment.status === "paid");
   const unpaidPayments = currentCyclePayments.filter((payment: any) => payment.status !== "paid");
-  const totalMembers = (members ?? []).length;
+  const totalMembers = totalMembersCount ?? (members ?? []).length;
   const collectedAmount = paidPayments.reduce(
     (sum: number, payment: any) => sum + Number(payment.amount_paid ?? payment.amount_due ?? 0),
     0,

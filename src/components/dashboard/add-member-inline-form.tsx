@@ -1,7 +1,6 @@
 'use client';
 
 import { useActionState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 
 import type { AddMemberFormState } from "@/app/(platform)/dashboard/chit-groups/actions";
 import { addMemberToDashboardChitGroupAction } from "@/app/(platform)/dashboard/chit-groups/actions";
@@ -23,7 +22,6 @@ export function AddMemberInlineForm({
   disabledMessage,
   onMemberAdded,
 }: AddMemberInlineFormProps) {
-  const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
   const [state, formAction, isPending] = useActionState(addMemberToDashboardChitGroupAction, initialState);
 
@@ -36,8 +34,7 @@ export function AddMemberInlineForm({
       onMemberAdded?.(state.member, state.currentPayment ?? null);
     }
     formRef.current?.reset();
-    router.refresh();
-  }, [onMemberAdded, router, state.currentPayment, state.member, state.success]);
+  }, [onMemberAdded, state.currentPayment, state.member, state.success]);
 
   return (
     <form

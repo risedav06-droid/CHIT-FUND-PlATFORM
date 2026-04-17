@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import type { AddMemberFormState } from "@/app/(platform)/dashboard/chit-groups/actions";
@@ -74,8 +74,13 @@ export function ChitGroupMembersPanel({
   const [notes, setNotes] = useState("");
   const [, startTransition] = useTransition();
 
+  useEffect(() => {
+    setMembers(initialMembers);
+  }, [initialMembers]);
+
   const stats = useMemo(() => {
     const paidCount = members.filter((entry) => entry.currentPayment?.status === "paid").length;
+    const totalCount = members.length;
     const collected = members.reduce(
       (sum, entry) => sum + Number(entry.currentPayment?.amount_paid ?? 0),
       0,
@@ -93,12 +98,15 @@ export function ChitGroupMembersPanel({
 
     return {
       paidCount,
+      totalCount,
       collected,
       outstanding,
       collectionRate:
-        members.length === 0 ? 0 : Math.round((paidCount / Math.max(members.length, 1)) * 100),
+        totalCount === 0 ? 0 : Math.round((paidCount / Math.max(totalCount, 1)) * 100),
     };
   }, [members, monthlyAmount]);
+
+  const currentLimitReached = members.length >= memberLimit;
 
   const health = useMemo(() => {
     if (stats.collectionRate > 80) {
@@ -128,18 +136,22 @@ export function ChitGroupMembersPanel({
     member: NonNullable<AddMemberFormState["member"]>,
     currentPayment: AddMemberFormState["currentPayment"],
   ) => {
-    setMembers((current) => [
-      ...current,
-      {
-        member,
-        currentPayment: currentPayment ?? {
-          id: `temp-${member.id}`,
-          amount_due: monthlyAmount,
-          amount_paid: 0,
-          status: "unpaid",
-        },
-      },
-    ]);
+    setMembers((current) =>
+      current.some((entry) => entry.member.id === member.id)
+        ? current
+        : [
+            ...current,
+            {
+              member,
+              currentPayment: currentPayment ?? {
+                id: `temp-${member.id}`,
+                amount_due: monthlyAmount,
+                amount_paid: 0,
+                status: "unpaid",
+              },
+            },
+          ],
+    );
     setToast(`${member.name} added successfully ✓`);
     window.setTimeout(() => setToast(null), 2400);
   };
@@ -267,7 +279,7 @@ export function ChitGroupMembersPanel({
                 </span>
                 <a
                   href="#add-member-form"
-                  className={`primary-button ${limitReached || members.length >= memberLimit ? "pointer-events-none opacity-50" : ""}`}
+                  className={`primary-button ${currentLimitReached ? "pointer-events-none opacity-50" : ""}`}
                 >
                   Add Member
                 </a>
@@ -466,9 +478,9 @@ export function ChitGroupMembersPanel({
 
           <AddMemberInlineForm
             chitGroupId={groupId}
-            disabled={limitReached || members.length >= memberLimit}
+            disabled={currentLimitReached}
             disabledMessage={
-              limitReached || members.length >= memberLimit
+              currentLimitReached
                 ? `This chit is full. You set a limit of ${memberLimit} members when creating this chit.`
                 : undefined
             }
@@ -481,7 +493,7 @@ export function ChitGroupMembersPanel({
             <h2>{monthLabel} Cycle Collection</h2>
             <div className="mt-5 flex items-center justify-between text-sm text-[var(--color-text-body)]">
               <span>
-                {stats.paidCount} / {Math.max(members.length, memberTargetCount)} Members paid
+                {stats.paidCount} / {stats.totalCount} Members paid
               </span>
               <span>{stats.collectionRate}%</span>
             </div>
