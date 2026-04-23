@@ -1,12 +1,9 @@
 export const revalidate = 10;
 
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { format } from "date-fns";
 
 import { PrintStatementButton } from "@/components/dashboard/print-statement-button";
 import { authService } from "@/modules/auth/auth.service";
-import { formatCurrency } from "@/lib/utils";
 import { getStatementData } from "@/utils/supabase/db";
 
 type StatementPageProps = {
@@ -22,85 +19,166 @@ export default async function StatementPage({ params }: StatementPageProps) {
     notFound();
   }
 
+  const chitGroup = data.group as any;
+  const member = data.member as any;
+  const payments = [...((data.payments as any[]) ?? [])].sort(
+    (a, b) => Number(a.payment_cycles?.cycle_number ?? 0) - Number(b.payment_cycles?.cycle_number ?? 0),
+  );
+
   return (
-    <main className="mx-auto max-w-5xl px-6 py-8 print:px-0 print:py-0">
-      <section className="rounded-[var(--radius-card)] bg-white p-8 shadow-[var(--shadow-card)] print:shadow-none">
-        <div className="print:hidden">
-          <Link href={`/dashboard/chit-groups/${id}`} className="editorial-label">
-            Back to chit group
-          </Link>
-        </div>
-        <div className="mt-4 flex items-start justify-between gap-4">
-          <div>
-            <p className="font-display text-[1.5rem] italic text-[var(--color-primary)]">
-              ChitMate
-            </p>
-            <h1 className="mt-2 text-[1.875rem]">Member Statement</h1>
-            <p className="mt-2 text-sm text-[var(--color-text-body)]">
-              Generated on {format(new Date(), "do MMMM yyyy")}
-            </p>
-          </div>
-          <PrintStatementButton />
-        </div>
+    <div
+      style={{
+        maxWidth: 680,
+        margin: "40px auto",
+        padding: 40,
+        fontFamily: "Arial, sans-serif",
+        background: "#fff",
+      }}
+    >
+      <PrintStatementButton
+        className="no-print"
+        style={{
+          background: "#1b4332",
+          color: "#fff",
+          border: "none",
+          borderRadius: 6,
+          padding: "10px 24px",
+          cursor: "pointer",
+          marginBottom: 32,
+        }}
+      />
 
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <div>
-            <p className="editorial-label !text-[var(--color-text-muted)]">Member</p>
-            <p className="mt-2 text-sm">{data.member.name}</p>
-            <p className="text-sm text-[var(--color-text-body)]">{data.member.phone}</p>
-          </div>
-          <div>
-            <p className="editorial-label !text-[var(--color-text-muted)]">Chit Name</p>
-            <p className="mt-2 text-sm">{data.group.name}</p>
-          </div>
-          <div>
-            <p className="editorial-label !text-[var(--color-text-muted)]">Managed By</p>
-            <p className="mt-2 text-sm">{session.user.name}</p>
+      <div
+        style={{
+          borderBottom: "3px solid #1b4332",
+          paddingBottom: 20,
+          marginBottom: 24,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "Georgia, serif",
+            fontSize: 28,
+            fontWeight: 700,
+            color: "#1b4332",
+            marginBottom: 4,
+          }}
+        >
+          ChitMate
+        </div>
+        <div style={{ color: "#6b7280", fontSize: 13 }}>
+          Member Payment Statement
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 16,
+          marginBottom: 24,
+          padding: 16,
+          background: "#f5f3f0",
+          borderRadius: 8,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 2 }}>MEMBER</div>
+          <div style={{ fontWeight: 700 }}>{member.name}</div>
+          <div style={{ fontSize: 13, color: "#6b7280" }}>{member.phone}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 2 }}>CHIT GROUP</div>
+          <div style={{ fontWeight: 700 }}>{chitGroup.name}</div>
+          <div style={{ fontSize: 13, color: "#6b7280" }}>
+            {chitGroup.duration_months} months · ₹{Number(chitGroup.monthly_amount).toLocaleString("en-IN")}/month
           </div>
         </div>
+        <div>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 2 }}>START DATE</div>
+          <div style={{ fontWeight: 600 }}>
+            {new Date(chitGroup.start_date).toLocaleDateString("en-IN", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 2 }}>GENERATED ON</div>
+          <div style={{ fontWeight: 600 }}>
+            {new Date().toLocaleDateString("en-IN", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </div>
+        </div>
+      </div>
 
-        <div className="mt-8 overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr>
-                {["Month", "Due Date", "Amount Due", "Amount Paid", "Mode", "Status"].map(
-                  (heading) => (
-                    <th
-                      key={heading}
-                      className="px-3 py-3 text-left text-xs uppercase tracking-[0.08em] text-[var(--color-text-muted)]"
-                    >
-                      {heading}
-                    </th>
-                  ),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {(data.payments as any[]).map((payment, index) => (
-                <tr
-                  key={payment.id}
-                  className={index % 2 === 0 ? "bg-[var(--color-surface-low)]" : "bg-white"}
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 24 }}>
+        <thead>
+          <tr style={{ background: "#1b4332" }}>
+            <th style={{ padding: "10px 12px", textAlign: "left", color: "#fff", fontSize: 12 }}>Month</th>
+            <th style={{ padding: "10px 12px", textAlign: "left", color: "#fff", fontSize: 12 }}>Due Date</th>
+            <th style={{ padding: "10px 12px", textAlign: "right", color: "#fff", fontSize: 12 }}>Amount Due</th>
+            <th style={{ padding: "10px 12px", textAlign: "right", color: "#fff", fontSize: 12 }}>Amount Paid</th>
+            <th style={{ padding: "10px 12px", textAlign: "left", color: "#fff", fontSize: 12 }}>Mode</th>
+            <th style={{ padding: "10px 12px", textAlign: "center", color: "#fff", fontSize: 12 }}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {payments.map((payment, index) => (
+            <tr key={payment.id} style={{ background: index % 2 === 0 ? "#fff" : "#f9f9f9" }}>
+              <td style={{ padding: "9px 12px", fontSize: 13 }}>
+                Month {payment.payment_cycles?.cycle_number ?? index + 1}
+              </td>
+              <td style={{ padding: "9px 12px", fontSize: 13, color: "#6b7280" }}>
+                {payment.payment_cycles?.due_date
+                  ? new Date(payment.payment_cycles.due_date).toLocaleDateString("en-IN")
+                  : "—"}
+              </td>
+              <td style={{ padding: "9px 12px", fontSize: 13, textAlign: "right" }}>
+                ₹{Number(payment.amount_due ?? 0).toLocaleString("en-IN")}
+              </td>
+              <td style={{ padding: "9px 12px", fontSize: 13, textAlign: "right", fontWeight: 600 }}>
+                {Number(payment.amount_paid ?? 0) > 0
+                  ? `₹${Number(payment.amount_paid ?? 0).toLocaleString("en-IN")}`
+                  : "—"}
+              </td>
+              <td style={{ padding: "9px 12px", fontSize: 13, color: "#6b7280" }}>
+                {payment.payment_mode || "—"}
+              </td>
+              <td style={{ padding: "9px 12px", textAlign: "center" }}>
+                <span
+                  style={{
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    background: payment.status === "paid" ? "#dcfce7" : "#fee2e2",
+                    color: payment.status === "paid" ? "#166534" : "#991b1b",
+                  }}
                 >
-                  <td className="px-3 py-4">Month {payment.payment_cycles?.cycle_number ?? index + 1}</td>
-                  <td className="px-3 py-4">
-                    {payment.payment_cycles?.due_date
-                      ? format(new Date(payment.payment_cycles.due_date), "do MMM yyyy")
-                      : "—"}
-                  </td>
-                  <td className="px-3 py-4">{formatCurrency(Number(payment.amount_due ?? 0))}</td>
-                  <td className="px-3 py-4">{formatCurrency(Number(payment.amount_paid ?? 0))}</td>
-                  <td className="px-3 py-4">{payment.payment_mode ?? "—"}</td>
-                  <td className="px-3 py-4">{payment.status ?? "unpaid"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  {payment.status === "paid" ? "Paid" : "Unpaid"}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-        <p className="mt-8 text-sm text-[var(--color-text-body)]">
-          {session.user.name} • Managed via ChitMate
-        </p>
-      </section>
-    </main>
+      <div
+        style={{
+          borderTop: "1px solid #e5e7eb",
+          paddingTop: 16,
+          fontSize: 12,
+          color: "#9ca3af",
+          textAlign: "center",
+        }}
+      >
+        Generated by ChitMate · DAV DEV STUDIO · This is an official payment record.
+      </div>
+    </div>
   );
 }

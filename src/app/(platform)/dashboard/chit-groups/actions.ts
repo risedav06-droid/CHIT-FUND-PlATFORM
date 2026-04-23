@@ -15,6 +15,8 @@ export type CreateChitGroupFormState = {
   >>;
 };
 
+const validChitTypes = new Set(["auction", "fixed_rotation", "lucky_draw"]);
+
 export type AddMemberFormState = {
   error?: string;
   success?: boolean;
@@ -57,7 +59,7 @@ function validateCreateChitGroup(formData: FormData): CreateChitGroupFormState {
   if (!Number.isFinite(commissionPct)) {
     fieldErrors.commissionPct = "Enter a valid commission percentage.";
   }
-  if (!chitType) {
+  if (!chitType || !validChitTypes.has(chitType)) {
     fieldErrors.chitType = "Choose how this chit group should run.";
   }
   if (!startDate) {

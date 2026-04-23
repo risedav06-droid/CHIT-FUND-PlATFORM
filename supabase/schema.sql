@@ -15,7 +15,7 @@ create table public.chit_groups (
   monthly_amount numeric(12,2) not null,
   duration_months int not null,
   commission_pct numeric(4,2) not null default 5.0,
-  chit_type text not null default 'auction',
+  chit_type text not null default 'auction' check (chit_type in ('auction', 'fixed_rotation', 'lucky_draw')),
   start_date date not null,
   status text not null default 'active',
   created_at timestamptz default now(),

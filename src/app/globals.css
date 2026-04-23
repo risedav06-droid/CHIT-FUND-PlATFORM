@@ -219,6 +219,16 @@ a {
   box-shadow: var(--shadow-card);
 }
 
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+}
+
 .recessed-input {
   width: 100%;
   background: var(--color-surface-high);

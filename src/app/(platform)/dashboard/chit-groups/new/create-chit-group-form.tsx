@@ -42,7 +42,7 @@ export function CreateChitGroupForm() {
   const [durationValue, setDurationValue] = useState("12");
   const [durationUnit, setDurationUnit] = useState<"months" | "years">("months");
   const [commissionPct, setCommissionPct] = useState("5");
-  const [chitType, setChitType] = useState<"auction" | "fixed_rotation">("auction");
+  const [chitType, setChitType] = useState<"auction" | "fixed_rotation" | "lucky_draw">("auction");
   const [startDate, setStartDate] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -161,7 +161,7 @@ export function CreateChitGroupForm() {
             <div className="space-y-3">
               <span className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.chitType")}</span>
               <input type="hidden" name="chitType" value={chitType} />
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-3" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
                 {[
                   {
                     value: "auction" as const,
@@ -172,6 +172,11 @@ export function CreateChitGroupForm() {
                     value: "fixed_rotation" as const,
                     title: t("chitGroup.fixedRotation"),
                     desc: t("chitGroup.fixedDesc"),
+                  },
+                  {
+                    value: "lucky_draw" as const,
+                    title: t("chitGroup.luckyDraw"),
+                    desc: t("chitGroup.luckyDrawDesc"),
                   },
                 ].map((option) => (
                   <div

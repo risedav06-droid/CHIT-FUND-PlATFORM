@@ -511,7 +511,7 @@ export async function createChitGroup(input: {
   monthlyAmount: number;
   durationMonths: number;
   commissionPct: number;
-  chitType: "auction" | "fixed_rotation";
+  chitType: "auction" | "fixed_rotation" | "lucky_draw";
   startDate: string;
 }) {
   const supabase = await createClient();
@@ -911,6 +911,112 @@ export async function finalizeAuctionForCycle(input: {
     winnerPayout,
     dividendPerMember,
     foremanCommission,
+  };
+}
+
+export async function finalizeLuckyDrawForCycle(input: {
+  organiserId: string;
+  chitGroupId: string;
+  cycleId: string;
+}) {
+  const supabase = await createClient();
+  const detail = await getDashboardChitGroupDetail(input.chitGroupId, input.organiserId);
+
+  if (!detail.data?.group) {
+    throw new Error("Lucky draw group not found.");
+  }
+
+  const group = detail.data.group as any;
+  const members = (detail.data.members as any[]).filter((member) => member.is_active !== false);
+  const currentCycle = (detail.data.paymentCycles as any[]).find((cycle) => cycle.id === input.cycleId);
+
+  if (group.chit_type !== "lucky_draw") {
+    throw new Error("This chit group is not configured for lucky draw.");
+  }
+
+  if (!currentCycle) {
+    throw new Error("Lucky draw cycle not found.");
+  }
+
+  if (currentCycle.auction_winner_id || currentCycle.status === "completed") {
+    throw new Error("A winner has already been drawn for this cycle.");
+  }
+
+  const eligibleMembers = members.filter((member) => !member.pot_taken);
+
+  if (eligibleMembers.length === 0) {
+    throw new Error("All members have already taken the pot.");
+  }
+
+  const winner = eligibleMembers[Math.floor(Math.random() * eligibleMembers.length)];
+
+  const { error: cycleError } = await supabase
+    .from("payment_cycles")
+    .update({
+      auction_winner_id: winner.id,
+      discount_amount: 0,
+      dividend_per_member: 0,
+      foreman_commission: 0,
+      status: "completed",
+    })
+    .eq("id", input.cycleId);
+
+  if (cycleError) {
+    throw new Error(cycleError.message);
+  }
+
+  const { error: memberError } = await supabase
+    .from("members")
+    .update({
+      pot_taken: true,
+      pot_month: currentCycle.cycle_number,
+    })
+    .eq("id", winner.id);
+
+  if (memberError) {
+    throw new Error(memberError.message);
+  }
+
+  const nextCycleNumber = Number(currentCycle.cycle_number ?? 1) + 1;
+
+  if (nextCycleNumber <= Number(group.duration_months ?? nextCycleNumber)) {
+    const nextDueDate = addMonths(new Date(currentCycle.due_date), 1)
+      .toISOString()
+      .slice(0, 10);
+    const { data: nextCycle, error: nextCycleError } = await supabase
+      .from("payment_cycles")
+      .insert({
+        chit_group_id: input.chitGroupId,
+        cycle_number: nextCycleNumber,
+        due_date: nextDueDate,
+        status: "pending",
+      })
+      .select("*")
+      .single();
+
+    if (nextCycleError) {
+      throw new Error(nextCycleError.message);
+    }
+
+    const paymentRows = members.map((member: any) => ({
+      cycle_id: nextCycle.id,
+      member_id: member.id,
+      amount_due: Number(group.monthly_amount ?? 0),
+      amount_paid: 0,
+      status: "unpaid",
+    }));
+
+    const { error: paymentsError } = await supabase.from("payments").insert(paymentRows);
+
+    if (paymentsError) {
+      throw new Error(paymentsError.message);
+    }
+  }
+
+  return {
+    winnerId: winner.id,
+    winnerName: winner.name,
+    cycleNumber: Number(currentCycle.cycle_number ?? 1),
   };
 }
 

@@ -97,6 +97,8 @@
     "auctionDesc": "Members bid monthly. Highest discount wins the pot. Better for savings-focused groups.",
     "fixedRotation": "Fixed Rotation",
     "fixedDesc": "Order decided upfront. No bidding required. Better for trusted small groups.",
+    "luckyDraw": "Lucky Draw",
+    "luckyDrawDesc": "Winner selected randomly each month. Fair and unbiased. Great for office and friend groups.",
     "createButton": "Create Chit Group",
     "creating": "Creating...",
     "duration_label": "Duration",

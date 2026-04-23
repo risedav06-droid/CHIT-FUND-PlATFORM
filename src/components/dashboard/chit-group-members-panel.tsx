@@ -36,7 +36,12 @@ type ChitGroupMembersPanelProps = {
   monthlyAmount: number;
   memberLimit: number;
   limitReached: boolean;
-  isAuctionType: boolean;
+  groupType: "auction" | "fixed_rotation" | "lucky_draw";
+  activeTab: "members" | "payments" | "distribution" | "statements";
+  members: any[];
+  paymentCycles: any[];
+  currentCycleId: string | null;
+  currentCycleNumber: number;
   initialMembers: MemberEntry[];
   nextAuctionDate: string;
   daysUntilDue: number | null;
@@ -56,11 +61,16 @@ export function ChitGroupMembersPanel({
   groupId,
   chitName,
   monthLabel,
-  memberTargetCount,
+  memberTargetCount: _memberTargetCount,
   monthlyAmount,
   memberLimit,
   limitReached,
-  isAuctionType,
+  groupType,
+  activeTab,
+  members: allMembers,
+  paymentCycles,
+  currentCycleId,
+  currentCycleNumber,
   initialMembers,
   nextAuctionDate,
   daysUntilDue,
@@ -74,11 +84,42 @@ export function ChitGroupMembersPanel({
   const [selectedMode, setSelectedMode] = useState("Cash");
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0] ?? "");
   const [notes, setNotes] = useState("");
+  const [isDrawingWinner, setIsDrawingWinner] = useState(false);
   const [, startTransition] = useTransition();
+  const isAuctionType = groupType === "auction";
 
   useEffect(() => {
     setMembers(initialMembers);
   }, [initialMembers]);
+
+  const memberMap = useMemo(
+    () => new Map((allMembers ?? []).map((member: any) => [member.id, member])),
+    [allMembers],
+  );
+
+  const currentCycle = useMemo(
+    () => (paymentCycles ?? []).find((cycle: any) => cycle.id === currentCycleId) ?? null,
+    [currentCycleId, paymentCycles],
+  );
+
+  const pastDrawResults = useMemo(
+    () =>
+      (paymentCycles ?? [])
+        .filter((cycle: any) => cycle.auction_winner_id)
+        .map((cycle: any) => ({
+          id: cycle.id,
+          cycleNumber: Number(cycle.cycle_number ?? 0),
+          dueDate: cycle.due_date,
+          winner: memberMap.get(cycle.auction_winner_id),
+        }))
+        .sort((a, b) => b.cycleNumber - a.cycleNumber),
+    [memberMap, paymentCycles],
+  );
+
+  const eligibleLuckyDrawMembers = useMemo(
+    () => members.filter((entry) => !entry.member.pot_taken),
+    [members],
+  );
 
   const stats = useMemo(() => {
     const paidCount = members.filter((entry) => entry.currentPayment?.status === "paid").length;
@@ -108,7 +149,7 @@ export function ChitGroupMembersPanel({
     };
   }, [members, monthlyAmount]);
 
-  const currentLimitReached = members.length >= memberLimit;
+  const currentLimitReached = limitReached || members.length >= memberLimit;
 
   const health = useMemo(() => {
     if (stats.collectionRate > 80) {
@@ -257,6 +298,50 @@ export function ChitGroupMembersPanel({
     });
   };
 
+  const handlePrintStatement = (member: any) => {
+    const url = `/dashboard/chit-groups/${groupId}/statement/${member.id}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleShareStatement = (member: any) => {
+    const url = `${window.location.origin}/dashboard/chit-groups/${groupId}/statement/${member.id}`;
+    const destination = member.whatsapp_phone || member.phone;
+    const message = `Hi ${member.name}, here is your ChitMate payment statement for ${chitName}: ${url}`;
+    window.open(`https://wa.me/${destination}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDrawWinner = async () => {
+    if (!currentCycleId) {
+      return;
+    }
+
+    setIsDrawingWinner(true);
+
+    try {
+      const response = await fetch("/api/lucky-draw/select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          groupId,
+          cycleId: currentCycleId,
+        }),
+      });
+      const payload = await response.json().catch(() => ({ error: "Could not complete the lucky draw." }));
+
+      if (!response.ok) {
+        setToast(payload.error ?? "Could not complete the lucky draw.");
+        window.setTimeout(() => setToast(null), 2400);
+        return;
+      }
+
+      setToast(`${payload.winnerName} won Month ${payload.cycleNumber} ✓`);
+      router.refresh();
+      window.setTimeout(() => setToast(null), 2400);
+    } finally {
+      setIsDrawingWinner(false);
+    }
+  };
+
   return (
     <>
       {toast ? (
@@ -267,248 +352,425 @@ export function ChitGroupMembersPanel({
 
       <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-6">
-          <section className="min-w-0 rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
-            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2>{t("chitGroup.members")}</h2>
-                <p className="mt-1 text-sm text-[var(--color-text-body)]">
-                  {t("chitGroup.trackMembers")}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="ledger-chip bg-[var(--color-surface-low)] text-[var(--color-text-body)]">
-                  {t("chitGroup.memberLimit", { current: members.length, max: memberLimit })}
-                </span>
-                <a
-                  href="#add-member-form"
-                  className={`primary-button ${currentLimitReached ? "pointer-events-none opacity-50" : ""}`}
-                >
-                  {t("chitGroup.addMember")}
-                </a>
-              </div>
-            </div>
+          {activeTab === "members" ? (
+            <>
+              <section className="min-w-0 rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
+                <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2>{t("chitGroup.members")}</h2>
+                    <p className="mt-1 text-sm text-[var(--color-text-body)]">
+                      {t("chitGroup.trackMembers")}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="ledger-chip bg-[var(--color-surface-low)] text-[var(--color-text-body)]">
+                      {t("chitGroup.memberLimit", { current: members.length, max: memberLimit })}
+                    </span>
+                    <a
+                      href="#add-member-form"
+                      className={`primary-button ${currentLimitReached ? "pointer-events-none opacity-50" : ""}`}
+                    >
+                      {t("chitGroup.addMember")}
+                    </a>
+                  </div>
+                </div>
 
-            {!isAuctionType ? (
-              <div id="rotation-order" className="mb-5 rounded-[var(--radius-card)] bg-[var(--color-surface-low)] p-4">
-                <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.rotationOrder")}</p>
-                <p className="mt-3 text-sm text-[#6b7280]">
-                  The pot will be distributed in this order. Each member receives the full pot in their designated month.
+                <div className="hidden items-center gap-3 px-4 pb-2 lg:flex">
+                  <div className="min-w-0 flex-[1_1_160px]">
+                    <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.members")}</p>
+                  </div>
+                  <div className="w-[110px] text-right">
+                    <p className="editorial-label !text-[var(--color-text-muted)]">{t("member.amountDue")}</p>
+                  </div>
+                  <div className="w-[88px]">
+                    <p className="editorial-label !text-[var(--color-text-muted)]">Status</p>
+                  </div>
+                  <div className="w-[88px]">
+                    <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.potTaken")}</p>
+                  </div>
+                  <div className="w-10 text-right">
+                    <p className="editorial-label !text-[var(--color-text-muted)]">Actions</p>
+                  </div>
+                </div>
+
+                {members.length === 0 ? (
+                  <EmptyState
+                    title={t("chitGroup.noMembers")}
+                    subtitle={t("chitGroup.trackMembers")}
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {members.map((entry, index) => {
+                      const unpaidPaymentId =
+                        entry.currentPayment && entry.currentPayment.status !== "paid"
+                          ? entry.currentPayment.id
+                          : null;
+
+                      return (
+                        <div
+                          key={entry.member.id}
+                          id={`member-${entry.member.id}`}
+                          className={`rounded-[var(--radius-card)] ${
+                            index % 2 === 0 ? "bg-white" : "bg-[var(--color-surface-low)]"
+                          }`}
+                        >
+                          <MemberRow
+                            name={entry.member.name}
+                            phone={entry.member.phone}
+                            initials={initials(entry.member.name)}
+                            amount={formatCurrency(Number(entry.currentPayment?.amount_due ?? monthlyAmount))}
+                            status={(entry.currentPayment?.status ?? "unpaid") as "paid" | "unpaid" | "partial"}
+                            potTaken={Boolean(entry.member.pot_taken)}
+                            actions={
+                              <MemberActionsMenu
+                                groupId={groupId}
+                                memberId={entry.member.id}
+                                token={entry.member.invite_token}
+                                chitName={chitName}
+                                canMarkPaid={Boolean(unpaidPaymentId)}
+                                onMarkPaid={unpaidPaymentId ? () => openPayment(unpaidPaymentId) : undefined}
+                              />
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
+              <AddMemberInlineForm
+                chitGroupId={groupId}
+                disabled={currentLimitReached}
+                disabledMessage={
+                  currentLimitReached
+                    ? `This chit is full. You set a limit of ${memberLimit} members when creating this chit.`
+                    : undefined
+                }
+                onMemberAdded={handleMemberAdded}
+              />
+            </>
+          ) : null}
+
+          {activeTab === "payments" ? (
+            <section id="payments" className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
+              <div className="mb-5">
+                <h2>{t("chitGroup.payments")}</h2>
+                <p className="mt-1 text-sm text-[var(--color-text-body)]">
+                  Confirm collection for each member in the current cycle.
                 </p>
-                <div className="mt-4 space-y-1">
+              </div>
+
+              {members.length === 0 ? (
+                <EmptyState
+                  title={t("member.noPayments")}
+                  subtitle={t("member.noPayments")}
+                />
+              ) : (
+                <div className="space-y-3">
                   {members.map((entry, index) => (
                     <div
-                      key={entry.member.id}
-                      className="flex items-center gap-3 py-3"
-                      style={{ borderBottom: "1px solid #f5f3f0" }}
+                      key={`${entry.member.id}-payment`}
+                      className={`rounded-[var(--radius-card)] p-4 ${
+                        index % 2 === 0 ? "bg-white" : "bg-[var(--color-surface-low)]"
+                      }`}
                     >
-                      <div
-                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[0.875rem] font-bold"
-                        style={{
-                          background: entry.member.pot_taken ? "#dcfce7" : "#f5f3f0",
-                          color: entry.member.pot_taken ? "#166534" : "#6b7280",
-                        }}
-                      >
-                        {index + 1}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium text-[#1b1c1a]">{entry.member.name}</div>
-                        <div className="text-[0.75rem] text-[#9ca3af]">
-                          Month {index + 1} · {entry.member.pot_taken ? "Pot received ✓" : t("chitGroup.waiting")}
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="font-medium text-[var(--color-text-primary)]">{entry.member.name}</p>
+                          <p className="text-sm text-[var(--color-text-body)]">{entry.member.phone}</p>
+                        </div>
+                        <div className="flex flex-col gap-2 md:items-end">
+                          <p className="font-medium text-[var(--color-text-primary)]">
+                            {formatCurrency(Number(entry.currentPayment?.amount_due ?? monthlyAmount))}
+                          </p>
+                          {entry.currentPayment?.status === "paid" ? (
+                            <span className="ledger-chip bg-[var(--color-success-bg)] text-[var(--color-success-text)]">
+                              {t("chitGroup.paid")}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => entry.currentPayment && openPayment(entry.currentPayment.id)}
+                              className="amber-button"
+                            >
+                              {t("chitGroup.markPaid")}
+                            </button>
+                          )}
                         </div>
                       </div>
-                      {entry.member.pot_taken ? (
-                        <span className="ledger-chip bg-[#dcfce7] text-[#166534]">Done</span>
+
+                      {openPaymentId === entry.currentPayment?.id ? (
+                        <div className="mt-3 rounded-[var(--radius-card)] bg-[var(--color-surface-low)] p-4">
+                          <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                            Mark payment for {entry.member.name}
+                          </p>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {["Cash", "UPI", "Bank Transfer", "Other"].map((mode) => (
+                              <button
+                                key={mode}
+                                type="button"
+                                onClick={() => setSelectedMode(mode)}
+                                className={`rounded-[var(--radius-button)] px-3 py-2 text-[0.8125rem] ${
+                                  selectedMode === mode
+                                    ? "bg-[rgba(1,45,29,0.08)] text-[var(--color-primary)] shadow-[inset_0_0_0_2px_#1b4332]"
+                                    : "bg-white text-[var(--color-text-body)] shadow-[inset_0_0_0_1px_rgba(209,213,219,1)]"
+                                }`}
+                              >
+                                {mode}
+                              </button>
+                            ))}
+                          </div>
+
+                          <input
+                            type="date"
+                            value={paymentDate}
+                            onChange={(event) => setPaymentDate(event.target.value)}
+                            className="recessed-input mt-3 h-11 w-full"
+                          />
+
+                          <textarea
+                            value={notes}
+                            onChange={(event) => setNotes(event.target.value)}
+                            placeholder="Optional notes"
+                            className="recessed-input mt-3 min-h-24 w-full"
+                          />
+
+                          <div className="mt-3 flex gap-3">
+                            <button
+                              type="button"
+                              onClick={() => entry.currentPayment && confirmPayment(entry.currentPayment.id)}
+                              className="primary-button w-full justify-center"
+                            >
+                              {t("common.confirm")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={closePaymentPanel}
+                              className="ghost-button w-full justify-center"
+                            >
+                              {t("common.cancel")}
+                            </button>
+                          </div>
+                        </div>
                       ) : null}
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : null}
+              )}
+            </section>
+          ) : null}
 
-            <div className="hidden items-center gap-3 px-4 pb-2 lg:flex">
-              <div className="min-w-0 flex-[1_1_160px]">
-                <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.members")}</p>
-              </div>
-              <div className="w-[110px] text-right">
-                <p className="editorial-label !text-[var(--color-text-muted)]">{t("member.amountDue")}</p>
-              </div>
-              <div className="w-[88px]">
-                <p className="editorial-label !text-[var(--color-text-muted)]">Status</p>
-              </div>
-              <div className="w-[88px]">
-                <p className="editorial-label !text-[var(--color-text-muted)]">{t("chitGroup.potTaken")}</p>
-              </div>
-              <div className="w-10 text-right">
-                <p className="editorial-label !text-[var(--color-text-muted)]">Actions</p>
-              </div>
-            </div>
-
-            {members.length === 0 ? (
-              <EmptyState
-                title={t("chitGroup.noMembers")}
-                subtitle={t("chitGroup.trackMembers")}
-              />
-            ) : (
-              <div className="space-y-3">
-                {members.map((entry, index) => (
-                  (() => {
-                    const unpaidPaymentId =
-                      entry.currentPayment && entry.currentPayment.status !== "paid"
-                        ? entry.currentPayment.id
-                        : null;
-
-                    return (
-                      <div
-                        key={entry.member.id}
-                        id={`member-${entry.member.id}`}
-                        className={`rounded-[var(--radius-card)] ${
-                          index % 2 === 0 ? "bg-white" : "bg-[var(--color-surface-low)]"
-                        }`}
-                      >
-                        <MemberRow
-                          name={entry.member.name}
-                          phone={entry.member.phone}
-                          initials={initials(entry.member.name)}
-                          amount={formatCurrency(Number(entry.currentPayment?.amount_due ?? monthlyAmount))}
-                          status={(entry.currentPayment?.status ?? "unpaid") as "paid" | "unpaid" | "partial"}
-                          potTaken={Boolean(entry.member.pot_taken)}
-                          actions={
-                            <MemberActionsMenu
-                              groupId={groupId}
-                              memberId={entry.member.id}
-                              token={entry.member.invite_token}
-                              chitName={chitName}
-                              canMarkPaid={Boolean(unpaidPaymentId)}
-                              onMarkPaid={unpaidPaymentId ? () => openPayment(unpaidPaymentId) : undefined}
-                            />
-                          }
-                        />
-                      </div>
-                    );
-                  })()
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section id="payments" className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
-            <div className="mb-5">
-              <h2>{t("chitGroup.payments")}</h2>
-              <p className="mt-1 text-sm text-[var(--color-text-body)]">
-                Confirm collection for each member in the current cycle.
+          {activeTab === "distribution" && groupType === "fixed_rotation" ? (
+            <section id="rotation-order" className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
+              <h2>{t("chitGroup.rotationOrder")}</h2>
+              <p className="mt-1 text-sm text-[#6b7280]">
+                The pot will be distributed in this order. Each member receives the full pot in their designated month.
               </p>
-            </div>
-
-            {members.length === 0 ? (
-              <EmptyState
-                title={t("member.noPayments")}
-                subtitle={t("member.noPayments")}
-              />
-            ) : (
-              <div className="space-y-3">
+              <div className="mt-5 space-y-1">
                 {members.map((entry, index) => (
                   <div
-                    key={`${entry.member.id}-payment`}
-                    className={`rounded-[var(--radius-card)] p-4 ${
-                      index % 2 === 0 ? "bg-white" : "bg-[var(--color-surface-low)]"
-                    }`}
+                    key={entry.member.id}
+                    className="flex items-center gap-3 py-3"
+                    style={{ borderBottom: "1px solid #f5f3f0" }}
                   >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <p className="font-medium text-[var(--color-text-primary)]">{entry.member.name}</p>
-                        <p className="text-sm text-[var(--color-text-body)]">{entry.member.phone}</p>
-                      </div>
-                      <div className="flex flex-col gap-2 md:items-end">
-                        <p className="font-medium text-[var(--color-text-primary)]">
-                          {formatCurrency(Number(entry.currentPayment?.amount_due ?? monthlyAmount))}
-                        </p>
-                        {entry.currentPayment?.status === "paid" ? (
-                          <span className="ledger-chip bg-[var(--color-success-bg)] text-[var(--color-success-text)]">
-                            {t("chitGroup.paid")}
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => entry.currentPayment && openPayment(entry.currentPayment.id)}
-                            className="amber-button"
-                          >
-                            {t("chitGroup.markPaid")}
-                          </button>
-                        )}
+                    <div
+                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[0.875rem] font-bold"
+                      style={{
+                        background: entry.member.pot_taken ? "#dcfce7" : "#f5f3f0",
+                        color: entry.member.pot_taken ? "#166534" : "#6b7280",
+                      }}
+                    >
+                      {index + 1}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-[#1b1c1a]">{entry.member.name}</div>
+                      <div className="text-[0.75rem] text-[#9ca3af]">
+                        Month {index + 1} · {entry.member.pot_taken ? "Pot received ✓" : t("chitGroup.waiting")}
                       </div>
                     </div>
-
-                    {openPaymentId === entry.currentPayment?.id ? (
-                      <div className="mt-3 rounded-[var(--radius-card)] bg-[var(--color-surface-low)] p-4">
-                        <p className="text-sm font-medium text-[var(--color-text-primary)]">
-                          Mark payment for {entry.member.name}
-                        </p>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {["Cash", "UPI", "Bank Transfer", "Other"].map((mode) => (
-                            <button
-                              key={mode}
-                              type="button"
-                              onClick={() => setSelectedMode(mode)}
-                              className={`rounded-[var(--radius-button)] px-3 py-2 text-[0.8125rem] ${
-                                selectedMode === mode
-                                  ? "bg-[rgba(1,45,29,0.08)] text-[var(--color-primary)] shadow-[inset_0_0_0_2px_#1b4332]"
-                                  : "bg-white text-[var(--color-text-body)] shadow-[inset_0_0_0_1px_rgba(209,213,219,1)]"
-                              }`}
-                            >
-                              {mode}
-                            </button>
-                          ))}
-                        </div>
-
-                        <input
-                          type="date"
-                          value={paymentDate}
-                          onChange={(event) => setPaymentDate(event.target.value)}
-                          className="recessed-input mt-3 h-11 w-full"
-                        />
-
-                        <textarea
-                          value={notes}
-                          onChange={(event) => setNotes(event.target.value)}
-                          placeholder="Optional notes"
-                          className="recessed-input mt-3 min-h-24 w-full"
-                        />
-
-                        <div className="mt-3 flex gap-3">
-                          <button
-                            type="button"
-                            onClick={() => entry.currentPayment && confirmPayment(entry.currentPayment.id)}
-                            className="primary-button w-full justify-center"
-                          >
-                            {t("common.confirm")}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={closePaymentPanel}
-                            className="ghost-button w-full justify-center"
-                          >
-                            {t("common.cancel")}
-                          </button>
-                        </div>
-                      </div>
+                    {entry.member.pot_taken ? (
+                      <span className="ledger-chip bg-[#dcfce7] text-[#166534]">Done</span>
                     ) : null}
                   </div>
                 ))}
               </div>
-            )}
-          </section>
+            </section>
+          ) : null}
 
-          <AddMemberInlineForm
-            chitGroupId={groupId}
-            disabled={currentLimitReached}
-            disabledMessage={
-              currentLimitReached
-                  ? `This chit is full. You set a limit of ${memberLimit} members when creating this chit.`
-                : undefined
-            }
-            onMemberAdded={handleMemberAdded}
-          />
+          {activeTab === "distribution" && groupType === "lucky_draw" ? (
+            <section className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2>{t("chitGroup.luckyDraw")}</h2>
+                  <p className="mt-1 text-sm text-[var(--color-text-body)]">
+                    Winner selected randomly each month from members who have not yet taken the pot.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDrawWinner}
+                  disabled={
+                    isDrawingWinner ||
+                    !currentCycleId ||
+                    Boolean(currentCycle?.auction_winner_id) ||
+                    eligibleLuckyDrawMembers.length === 0
+                  }
+                  className="amber-button disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isDrawingWinner ? "Drawing..." : `Draw Winner for Month ${currentCycleNumber}`}
+                </button>
+              </div>
+
+              <div className="mt-5 rounded-[var(--radius-card)] bg-[var(--color-surface-low)] p-4">
+                <p className="editorial-label !text-[var(--color-text-muted)]">Current Cycle</p>
+                <p className="mt-2 text-sm text-[var(--color-text-body)]">
+                  Eligible members remaining: {eligibleLuckyDrawMembers.length}
+                </p>
+                <p className="mt-1 text-sm text-[var(--color-text-body)]">
+                  {currentCycle?.auction_winner_id
+                    ? `Winner already drawn: ${memberMap.get(currentCycle.auction_winner_id)?.name ?? "Member"}`
+                    : "No winner drawn yet for this cycle."}
+                </p>
+              </div>
+
+              <div className="mt-6">
+                <p className="editorial-label !text-[var(--color-text-muted)]">Past Draw Results</p>
+                {pastDrawResults.length === 0 ? (
+                  <p className="mt-3 text-sm text-[var(--color-text-body)]">No draw results yet.</p>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {pastDrawResults.map((result) => (
+                      <div
+                        key={result.id}
+                        className="flex items-center justify-between gap-3 rounded-[var(--radius-card)] bg-[var(--color-surface-low)] px-4 py-3"
+                      >
+                        <div>
+                          <p className="font-medium text-[var(--color-text-primary)]">
+                            Month {result.cycleNumber}
+                          </p>
+                          <p className="text-[0.75rem] text-[var(--color-text-body)]">
+                            {result.dueDate
+                              ? new Date(result.dueDate).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "long",
+                                  year: "numeric",
+                                })
+                              : "Date pending"}
+                          </p>
+                        </div>
+                        <span className="ledger-chip bg-[var(--color-success-bg)] text-[var(--color-success-text)]">
+                          {result.winner?.name ?? "Winner"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          ) : null}
+
+          {activeTab === "statements" ? (
+            <section className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)]">
+              <h2>{t("chitGroup.statements")}</h2>
+              <p
+                style={{
+                  color: "#6b7280",
+                  fontSize: "0.875rem",
+                  marginBottom: 16,
+                  marginTop: 8,
+                }}
+              >
+                Generate a PDF statement for any member showing their full payment history.
+              </p>
+
+              {members.length === 0 ? (
+                <EmptyState
+                  title={t("chitGroup.noMembers")}
+                  subtitle="Add members to start generating statements."
+                />
+              ) : (
+                <div>
+                  {members.map((entry) => (
+                    <div
+                      key={entry.member.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 16,
+                        padding: "12px 0",
+                        borderBottom: "1px solid #f5f3f0",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: "50%",
+                            background: "#1b4332",
+                            color: "#fff",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "0.75rem",
+                            fontWeight: 700,
+                          }}
+                        >
+                          {entry.member.name.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 500, color: "#1b1c1a" }}>
+                            {entry.member.name}
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
+                            {entry.member.phone}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() => handlePrintStatement(entry.member)}
+                          style={{
+                            background: "linear-gradient(135deg, #d4a843, #eec058)",
+                            color: "#1b1c1a",
+                            border: "none",
+                            borderRadius: 6,
+                            padding: "8px 16px",
+                            fontSize: "0.8125rem",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Download PDF
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleShareStatement(entry.member)}
+                          style={{
+                            background: "#25d366",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 6,
+                            padding: "8px 16px",
+                            fontSize: "0.8125rem",
+                            cursor: "pointer",
+                          }}
+                        >
+                          WhatsApp
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-4 xl:sticky xl:top-6">
@@ -550,10 +812,16 @@ export function ChitGroupMembersPanel({
           </section>
 
           <section className="rounded-[var(--radius-card)] bg-[var(--color-primary-container)] p-6 text-white shadow-[var(--shadow-card)]">
-            <p className="editorial-label !text-[rgba(255,255,255,0.72)]">{t("chitGroup.nextAuction")}</p>
+            <p className="editorial-label !text-[rgba(255,255,255,0.72)]">
+              {isAuctionType ? t("chitGroup.nextAuction") : groupType === "lucky_draw" ? "Current Draw" : t("chitGroup.rotationOrder")}
+            </p>
             <p className="mt-3 font-display text-[1.5rem] italic">{nextAuctionDate}</p>
             <p className="mt-3 text-sm leading-7 text-white/78">
-              {t("chitGroup.auctionViaPortal")}
+              {isAuctionType
+                ? t("chitGroup.auctionViaPortal")
+                : groupType === "lucky_draw"
+                  ? "Draw the current cycle winner once the collection is ready."
+                  : "The preset member order controls who receives the pot each cycle."}
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               {members.slice(0, 4).map((entry) => (

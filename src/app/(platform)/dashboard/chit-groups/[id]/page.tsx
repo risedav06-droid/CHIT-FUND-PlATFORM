@@ -1,6 +1,5 @@
 export const revalidate = 10;
 
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { differenceInCalendarDays, format } from "date-fns";
 
@@ -78,6 +77,9 @@ export default async function DashboardChitGroupDetailPage({
       potValue={potValue}
       endDateLabel={endDateLabel}
       members={members}
+      paymentCycles={paymentCycles}
+      currentCycleId={currentCycle?.id ?? null}
+      currentCycleNumber={currentCycleNumber}
       currentMemberRows={currentMemberRows.map(({ member, currentPayment }) => ({
         member: {
           id: member.id,

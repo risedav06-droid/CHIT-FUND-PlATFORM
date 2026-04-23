@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 
@@ -14,6 +15,9 @@ type DashboardChitGroupDetailClientProps = {
   potValue: number;
   endDateLabel: string;
   members: any[];
+  paymentCycles: any[];
+  currentCycleId: string | null;
+  currentCycleNumber: number;
   currentMemberRows: any[];
   nextAuctionDate: string;
   daysUntilDue: number | null;
@@ -27,12 +31,21 @@ export function DashboardChitGroupDetailClient({
   potValue,
   endDateLabel,
   members,
+  paymentCycles,
+  currentCycleId,
+  currentCycleNumber,
   currentMemberRows,
   nextAuctionDate,
   daysUntilDue,
   defaulterCount,
 }: DashboardChitGroupDetailClientProps) {
   const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<"members" | "payments" | "distribution" | "statements">("members");
+
+  const distributionLabel =
+    group.chit_type === "lucky_draw"
+      ? t("chitGroup.luckyDraw")
+      : t("chitGroup.rotationOrder");
 
   return (
     <div className="space-y-6">
@@ -66,20 +79,56 @@ export function DashboardChitGroupDetailClient({
         </div>
 
         <div className="mt-8 flex gap-8 overflow-x-auto text-sm">
-          <span className="border-b-2 border-[var(--color-primary-container)] pb-3 font-display text-[var(--color-text-primary)]">{t("chitGroup.members")}</span>
-          <a href="#payments" className="pb-3 text-[var(--color-text-muted)]">{t("chitGroup.payments")}</a>
+          <button
+            type="button"
+            onClick={() => setActiveTab("members")}
+            className={`border-b-2 pb-3 ${
+              activeTab === "members"
+                ? "border-[var(--color-primary-container)] font-display text-[var(--color-text-primary)]"
+                : "border-transparent text-[var(--color-text-muted)]"
+            }`}
+          >
+            {t("chitGroup.members")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("payments")}
+            className={`border-b-2 pb-3 ${
+              activeTab === "payments"
+                ? "border-[var(--color-primary-container)] font-display text-[var(--color-text-primary)]"
+                : "border-transparent text-[var(--color-text-muted)]"
+            }`}
+          >
+            {t("chitGroup.payments")}
+          </button>
           {group.chit_type === "auction" ? (
             <Link href={`/dashboard/chit-groups/${group.id}/auction`} className="pb-3 text-[var(--color-text-muted)]">
               {t("chitGroup.auctions")}
             </Link>
           ) : (
-            <a href="#rotation-order" className="pb-3 text-[var(--color-text-muted)]">
-              {t("chitGroup.rotationOrder")}
-            </a>
+            <button
+              type="button"
+              onClick={() => setActiveTab("distribution")}
+              className={`border-b-2 pb-3 ${
+                activeTab === "distribution"
+                  ? "border-[var(--color-primary-container)] font-display text-[var(--color-text-primary)]"
+                  : "border-transparent text-[var(--color-text-muted)]"
+              }`}
+            >
+              {distributionLabel}
+            </button>
           )}
-          <Link href={`/dashboard/chit-groups/${group.id}/statement/${members[0]?.id ?? ""}`} className="pb-3 text-[var(--color-text-muted)]">
+          <button
+            type="button"
+            onClick={() => setActiveTab("statements")}
+            className={`border-b-2 pb-3 ${
+              activeTab === "statements"
+                ? "border-[var(--color-primary-container)] font-display text-[var(--color-text-primary)]"
+                : "border-transparent text-[var(--color-text-muted)]"
+            }`}
+          >
             {t("chitGroup.statements")}
-          </Link>
+          </button>
         </div>
       </section>
 
@@ -89,9 +138,14 @@ export function DashboardChitGroupDetailClient({
         monthLabel={monthLabel}
         memberTargetCount={Number(group.member_count ?? 0)}
         monthlyAmount={monthlyAmount}
-        isAuctionType={group.chit_type === "auction"}
+        groupType={group.chit_type}
+        activeTab={activeTab}
         memberLimit={Number(group.member_count ?? 0)}
         limitReached={members.length >= Number(group.member_count ?? 0)}
+        members={members}
+        paymentCycles={paymentCycles}
+        currentCycleId={currentCycleId}
+        currentCycleNumber={currentCycleNumber}
         nextAuctionDate={nextAuctionDate}
         daysUntilDue={daysUntilDue}
         defaulterCount={defaulterCount}
